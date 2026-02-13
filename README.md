@@ -79,7 +79,7 @@ rule UserRequestsPasswordReset {
             user: user,
             expires_at: now + config.reset_token_lifetime
         )
-        Email.sent(
+        Email.created(
             to: user.email,
             template: password_reset,
             data: { token }

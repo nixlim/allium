@@ -937,7 +937,7 @@ entity Workspace {
 rule DeleteDocument {
     when: DeleteDocument(actor, document)
 
-    let membership = WorkspaceMember{document.workspace, actor}
+    let membership = WorkspaceMember{workspace: document.workspace, user: actor}
 
     requires: document.status = active
     requires: actor = document.created_by or membership.can_admin
@@ -950,7 +950,7 @@ rule DeleteDocument {
 rule RestoreDocument {
     when: RestoreDocument(actor, document)
 
-    let membership = WorkspaceMember{document.workspace, actor}
+    let membership = WorkspaceMember{workspace: document.workspace, user: actor}
 
     requires: document.can_restore
     requires: actor = document.deleted_by or membership.can_admin
@@ -963,7 +963,7 @@ rule RestoreDocument {
 rule PermanentlyDelete {
     when: PermanentlyDelete(actor, document)
 
-    let membership = WorkspaceMember{document.workspace, actor}
+    let membership = WorkspaceMember{workspace: document.workspace, user: actor}
 
     requires: document.status = deleted
     requires: membership.can_admin
@@ -974,7 +974,7 @@ rule PermanentlyDelete {
 rule EmptyTrash {
     when: EmptyTrash(actor, workspace)
 
-    let membership = WorkspaceMember{workspace, actor}
+    let membership = WorkspaceMember{workspace: workspace, user: actor}
 
     requires: membership.can_admin
 

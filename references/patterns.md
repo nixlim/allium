@@ -39,7 +39,7 @@ config {
 entity User {
     email: Email
     password_hash: String          -- stored, never exposed
-    status: pending | active | locked | deactivated
+    status: active | locked | deactivated
     failed_login_attempts: Integer
     locked_until: Timestamp?
 
@@ -246,7 +246,7 @@ rule ResetTokenExpires {
 ------------------------------------------------------------
 
 actor AuthenticatedUser {
-    identified_by: Session.user with Session.is_valid
+    identified_by: User with active_sessions.count > 0
 }
 
 ------------------------------------------------------------
@@ -424,10 +424,10 @@ rule CreateWorkspace {
 rule AddMember {
     when: AddMemberToWorkspace(actor, workspace, new_user, role)
 
-    let actor_membership = WorkspaceMembership{actor, workspace}
+    let actor_membership = WorkspaceMembership{user: actor, workspace: workspace}
 
     requires: actor_membership.can_admin
-    requires: not exists WorkspaceMembership{new_user, workspace}
+    requires: not exists WorkspaceMembership{user: new_user, workspace: workspace}
 
     ensures: WorkspaceMembership.created(
         user: new_user,
@@ -445,8 +445,8 @@ rule AddMember {
 rule ChangeMemberRole {
     when: ChangeMemberRole(actor, workspace, target_user, new_role)
 
-    let actor_membership = WorkspaceMembership{actor, workspace}
-    let target_membership = WorkspaceMembership{target_user, workspace}
+    let actor_membership = WorkspaceMembership{user: actor, workspace: workspace}
+    let target_membership = WorkspaceMembership{user: target_user, workspace: workspace}
 
     requires: actor_membership.can_admin
     requires: exists target_membership
@@ -458,8 +458,8 @@ rule ChangeMemberRole {
 rule RemoveMember {
     when: RemoveMemberFromWorkspace(actor, workspace, target_user)
 
-    let actor_membership = WorkspaceMembership{actor, workspace}
-    let target_membership = WorkspaceMembership{target_user, workspace}
+    let actor_membership = WorkspaceMembership{user: actor, workspace: workspace}
+    let target_membership = WorkspaceMembership{user: target_user, workspace: workspace}
 
     requires: actor_membership.can_admin
     requires: exists target_membership
@@ -501,7 +501,7 @@ rule CreateDocument {
 rule ViewDocument {
     when: ViewDocument(user, document)
 
-    let membership = WorkspaceMembership{user, document.workspace}
+    let membership = WorkspaceMembership{user: user, workspace: document.workspace}
 
     requires: membership.can_read
 
@@ -513,15 +513,15 @@ rule ViewDocument {
 ------------------------------------------------------------
 
 actor WorkspaceAdmin {
-    identified_by: User with WorkspaceMembership{user, workspace}.can_admin
+    identified_by: User with WorkspaceMembership{user: this, workspace: context}.can_admin
 }
 
 actor WorkspaceEditor {
-    identified_by: User with WorkspaceMembership{user, workspace}.can_write
+    identified_by: User with WorkspaceMembership{user: this, workspace: context}.can_write
 }
 
 actor WorkspaceViewer {
-    identified_by: User with WorkspaceMembership{user, workspace}.can_read
+    identified_by: User with WorkspaceMembership{user: this, workspace: context}.can_read
 }
 
 ------------------------------------------------------------
@@ -554,7 +554,7 @@ surface WorkspaceDocuments {
 
     context workspace: Workspace
 
-    let membership = WorkspaceMembership{member, workspace}
+    let membership = WorkspaceMembership{user: member, workspace: workspace}
 
     exposes:
         workspace.name
@@ -576,7 +576,7 @@ surface WorkspaceDocuments {
 **Key language features shown:**
 - Recursive derived values (`effective_permissions` includes inherited)
 - Null-safe navigation (`inherits_from?.effective_permissions ?? {}`)
-- Join entity lookup (`WorkspaceMembership{user, workspace}`)
+- Join entity lookup (`WorkspaceMembership{user: actor, workspace: workspace}`)
 - Permission checks in `requires` clauses
 - Membership with `in` operator for set membership
 - `not exists` as an outcome (removes the entity)
@@ -649,13 +649,14 @@ entity ResourceInvitation {
 rule InviteToResource {
     when: InviteToResource(inviter, resource, email, permission)
 
-    let inviter_share = ResourceShare{resource, inviter}
+    let inviter_share = ResourceShare{resource: resource, user: inviter}
+    let existing_invitation = ResourceInvitation{resource: resource, email: email}
 
     requires: inviter = resource.owner or inviter_share.can_invite
     requires: permission in [view, edit]    -- can't invite as admin unless owner
               or (permission = admin and inviter = resource.owner)
-    requires: not exists ResourceShare{resource, User{email}}    -- not already shared
-    requires: not ResourceInvitation{resource, email}.is_valid   -- no pending invite
+    requires: not exists ResourceShare{resource: resource, user: User{email: email}}
+    requires: not exists existing_invitation or not existing_invitation.is_valid
 
     ensures: ResourceInvitation.created(
         resource: resource,
@@ -758,7 +759,7 @@ rule InvitationExpires {
 rule RevokeInvitation {
     when: RevokeInvitation(actor, invitation)
 
-    let actor_share = ResourceShare{invitation.resource, actor}
+    let actor_share = ResourceShare{resource: invitation.resource, user: actor}
 
     requires: invitation.status = pending
     requires: actor = invitation.resource.owner or actor_share.can_admin
@@ -773,7 +774,7 @@ rule RevokeInvitation {
 rule ChangeSharePermission {
     when: ChangeSharePermission(actor, share, new_permission)
 
-    let actor_share = ResourceShare{share.resource, actor}
+    let actor_share = ResourceShare{resource: share.resource, user: actor}
 
     requires: actor = share.resource.owner or actor_share.can_admin
     requires: share.user != share.resource.owner    -- can't change owner
@@ -785,7 +786,7 @@ rule ChangeSharePermission {
 rule RevokeShare {
     when: RevokeShare(actor, share)
 
-    let actor_share = ResourceShare{share.resource, actor}
+    let actor_share = ResourceShare{resource: share.resource, user: actor}
 
     requires: actor = share.resource.owner or actor_share.can_admin
     requires: share.user != share.resource.owner
@@ -808,7 +809,7 @@ surface ResourceSharing {
 
     context resource: Resource
 
-    let share = ResourceShare{resource, sharer}
+    let share = ResourceShare{resource: resource, user: sharer}
 
     exposes:
         resource.active_shares
@@ -914,7 +915,7 @@ entity Workspace {
 rule DeleteDocument {
     when: DeleteDocument(actor, document)
 
-    let membership = WorkspaceMembership{actor, document.workspace}
+    let membership = WorkspaceMembership{user: actor, workspace: document.workspace}
 
     requires: document.status = active
     requires: actor = document.created_by or membership.can_admin
@@ -927,7 +928,7 @@ rule DeleteDocument {
 rule RestoreDocument {
     when: RestoreDocument(actor, document)
 
-    let membership = WorkspaceMembership{actor, document.workspace}
+    let membership = WorkspaceMembership{user: actor, workspace: document.workspace}
 
     requires: document.can_restore
     requires: actor = document.deleted_by or membership.can_admin
@@ -940,7 +941,7 @@ rule RestoreDocument {
 rule PermanentlyDelete {
     when: PermanentlyDelete(actor, document)
 
-    let membership = WorkspaceMembership{actor, document.workspace}
+    let membership = WorkspaceMembership{user: actor, workspace: document.workspace}
 
     requires: document.status = deleted
     requires: membership.can_admin
@@ -963,7 +964,7 @@ rule RetentionExpires {
 rule EmptyTrash {
     when: EmptyTrash(actor, workspace)
 
-    let membership = WorkspaceMembership{actor, workspace}
+    let membership = WorkspaceMembership{user: actor, workspace: workspace}
 
     requires: membership.can_admin
 
@@ -975,7 +976,7 @@ rule EmptyTrash {
 rule RestoreAll {
     when: RestoreAllDeleted(actor, workspace)
 
-    let membership = WorkspaceMembership{actor, workspace}
+    let membership = WorkspaceMembership{user: actor, workspace: workspace}
 
     requires: membership.can_admin
 
@@ -1517,7 +1518,7 @@ rule AddTeamMember {
     when: AddMember(actor, workspace, new_member, role)
 
     requires: workspace.can_add_member
-    requires: WorkspaceMembership{actor, workspace}.can_admin
+    requires: WorkspaceMembership{user: actor, workspace: workspace}.can_admin
 
     ensures: WorkspaceMembership.created(...)
     ensures: UsageEvent.created(
@@ -1659,11 +1660,11 @@ rule DowngradeBlocked {
 ------------------------------------------------------------
 
 actor WorkspaceOwner {
-    identified_by: workspace.owner
+    identified_by: User with this = context.owner
 }
 
 actor APIConsumer {
-    identified_by: workspace with valid api_key
+    identified_by: Workspace with api_key != null
 }
 
 ------------------------------------------------------------
@@ -1743,9 +1744,8 @@ This pattern implements comments with @mentions, including mention parsing and n
 -- Entities
 ------------------------------------------------------------
 
-entity Commentable {
-    -- Abstract: could be Document, Task, Project, etc.
-    -- Defined by consuming spec
+external entity Commentable {
+    -- Defined by the consuming spec (e.g., Document, Task, Project)
 }
 
 entity Comment {
@@ -1976,7 +1976,7 @@ surface CommentThread {
 
     context parent: Commentable
 
-    let comments = Comment for parent with status = active
+    let comments = Comments with parent = parent and status = active
 
     exposes:
         for comment in comments:
@@ -1998,7 +1998,7 @@ surface CommentThread {
                 when viewer = comment.author or viewer.is_admin
             AddReaction(viewer, comment, emoji)
             RemoveReaction(viewer, comment, emoji)
-                when exists CommentReaction{comment, viewer, emoji}
+                when exists CommentReaction{comment: comment, user: viewer, emoji: emoji}
 
     guidance:
         -- Show "edited" indicator when comment.is_edited.
@@ -2158,11 +2158,10 @@ rule NotifySessionExpiring {
 
     requires: user != null
 
-    ensures: Notification.created(
+    ensures: UserNotified(
         user: user,
-        type: system,
-        title: "Session expiring soon",
-        data: { time_remaining: session.time_remaining }
+        about: session_expiring,
+        with: { time_remaining: session.time_remaining }
     )
 }
 
@@ -2321,11 +2320,10 @@ rule HandlePaymentFailure {
             update_payment_url: org.billing_portal_url
         }
     )
-    ensures: Notification.created(
+    ensures: UserNotified(
         user: org.owner,
-        type: billing,
-        title: "Payment failed",
-        body: "We couldn't process your payment. Please update your payment method."
+        about: payment_failed,
+        with: { reason: failure_reason }
     )
 }
 
@@ -2430,6 +2428,7 @@ rule CancelSubscription {
 - External spec references with immutable coordinates (`use "github.com/.../abc123" as alias`)
 - Configuration blocks for external specs (`oauth/config { ... }`)
 - Responding to external triggers (`when: oauth/AuthenticationSucceeded(...)`)
+- Trigger emissions for cross-pattern notification (`UserNotified(...)`)
 - Responding to external state transitions (`when: stripe/Subscription.status becomes cancelled`)
 - Using external entities (`oauth/Session`, `stripe/Customer`)
 - Linking application entities to external entities (`stripe_customer: stripe/Customer?`)
@@ -2481,7 +2480,7 @@ entity Document {
 rule EditDocument {
     when: EditDocument(user, document, content)
 
-    let share = rbac/ResourceShare{document, user}
+    let share = rbac/ResourceShare{resource: document, user: user}
 
     requires: share.can_edit
     ...

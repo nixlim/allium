@@ -271,6 +271,14 @@ feedback_requests: FeedbackRequest for this interview
 
 The `for this X` syntax indicates the foreign key direction without specifying implementation.
 
+Relationships can also be declared with the `with` filter syntax:
+
+```
+replies: Comment with reply_to = this
+```
+
+This is equivalent to a `for this` relationship when the filter matches a foreign key, but can express conditions that `for this` cannot, such as self-referential relationships.
+
 ### Projections
 
 Named filtered views of relationships:
@@ -413,12 +421,18 @@ when: batch: DigestBatch.created
 when: mention: CommentMention.created
 ```
 
-**Chained from another rule:**
+**Chained from another rule's trigger emission:**
 ```
 when: AllConfirmationsResolved(candidacy)
 ```
 
-Rule completions are another trigger type. The triggering rule's name becomes a trigger, and parameters specify what data flows to the chained rule.
+A rule chains from another by subscribing to a trigger emission. The emitting rule includes the event in an ensures clause:
+
+```
+ensures: AllConfirmationsResolved(candidacy: candidacy)
+```
+
+The receiving rule subscribes via its `when` clause. This uses the same syntax as external stimulus triggers, but the stimulus comes from another rule rather than from outside the system.
 
 ### Preconditions (requires)
 
@@ -573,7 +587,16 @@ reply_to?.author
 -- Null coalescing (provides default when left side is null)
 identity.timezone ?? "UTC"
 inherits_from?.effective_permissions ?? {}
+
+-- Self-reference
+this                                        -- the instance being defined or identified
+replies: Comment with reply_to = this       -- all Comments whose reply_to is this entity
 ```
+
+`this` refers to the instance of the enclosing type. It is valid in two contexts:
+
+- **Entity declarations**: `this` is the current entity instance. Available in relationships, projections and derived values.
+- **Actor `identified_by` expressions**: `this` is the entity instance being tested for actor membership (see [Actor declarations](#actor-declarations)).
 
 ### Join lookups
 
@@ -584,7 +607,15 @@ let confirmation = SlotConfirmation{slot, interviewer}
 let feedback_request = FeedbackRequest{interview, interviewer}
 ```
 
-Curly braces with field names look up the specific instance where those fields match.
+Curly braces with field names look up the specific instance where those fields match. Each name serves as both the field name on the entity and the local variable whose value is matched.
+
+When the local variable name differs from the field name, use the explicit form:
+
+```
+let actor_membership = WorkspaceMembership{user: actor, workspace: workspace}
+let share = ResourceShare{resource: resource, user: inviter}
+requires: not exists User{email: new_email}
+```
 
 ### Collection operations
 
@@ -675,6 +706,18 @@ ensures:
 ```
 
 Both forms use the same `if condition: ... else: ...` syntax. The inline form is for single-value assignments only. If either branch needs multiple statements or entity creation, use block form. Omit `else` when only the true branch has an effect.
+
+Multi-branch conditionals use `else if`:
+
+```
+let preference =
+    if notification.kind = MentionNotification: settings.email_on_mention
+    else if notification.kind = ReplyNotification: settings.email_on_comment
+    else if notification.kind = ShareNotification: settings.email_on_share
+    else: immediately
+```
+
+Each `else if` adds a branch. The final `else` provides a fallback.
 
 `exists` can also be used as a condition in `if` expressions, not just in `requires`:
 
@@ -771,6 +814,19 @@ for user in Users with digest_enabled = true:
 ```
 
 Note: `with:` as a named parameter in trigger emissions (`CandidateInformed(... with: { data })`) is a parameter name, not the `with` keyword. The colon disambiguates.
+
+### Entity collections
+
+The pluralised type name refers to all instances of that entity:
+
+```
+for user in Users with digest_enabled = true:
+    ...
+```
+
+`Users` means all instances of `User`. Use natural English plurals: `Users`, `Documents`, `Workspaces`, `Candidacies`.
+
+Entity collections are typically used in rule-level `for` clauses and surface `let` bindings to iterate or filter across all instances of a type.
 
 ---
 
@@ -912,7 +968,9 @@ rule AuditLogin {
 
 rule NotifyOnFeedbackSubmitted {
     when: feedback/Request.status becomes submitted
-    ensures: Notification.created(to: Admin.all, template: feedback_received)
+    ensures:
+        for admin in Users with role = admin:
+            Notification.created(to: admin, template: feedback_received)
 }
 ```
 
@@ -963,10 +1021,6 @@ Surfaces do not specify implementation details (database schemas, wire protocols
 When a surface has a specific external party, declare actor types:
 
 ```
-actor User {
-    identified_by: session.user
-}
-
 actor Interviewer {
     identified_by: User with role = interviewer
 }
@@ -975,12 +1029,35 @@ actor Admin {
     identified_by: User with role = admin
 }
 
-actor Candidate {
-    identified_by: Candidacy.candidate
+actor AuthenticatedUser {
+    identified_by: User with active_sessions.count > 0
 }
 ```
 
-The `identified_by` expression maps an actor type to the entity or condition that identifies them.
+The `identified_by` expression specifies the entity type and condition that identifies the actor. It takes the form `EntityType with condition`, where the condition uses the entity's own fields, derived values and relationships.
+
+When an actor's identity depends on a scope that varies per surface, the `identified_by` expression may use `context`, which binds to the surface's `context` entity at the point of use:
+
+```
+actor WorkspaceAdmin {
+    identified_by: User with WorkspaceMembership{user: this, workspace: context}.can_admin
+}
+```
+
+Two keywords are available inside `identified_by`:
+
+- `this` — the entity instance being tested (here, the User). Same semantics as `this` in entity declarations.
+- `context` — the entity bound by the `context` clause of the surface that uses this actor. Each surface provides its own binding.
+
+```
+surface WorkspaceManagement {
+    for admin: WorkspaceAdmin
+    context workspace: Workspace    -- 'context' in WorkspaceAdmin resolves to this workspace
+    ...
+}
+```
+
+An actor declaration that uses `context` can only be used in surfaces that declare a `context` clause. The types must be compatible: if the `identified_by` expression navigates through `context` expecting a Workspace, the surface's context must bind a Workspace.
 
 For integration surfaces where the external party is code rather than a person, the `for` clause may name a logical role without a formal actor declaration.
 
@@ -1026,7 +1103,7 @@ Variable names (`party`, `item`) are user-chosen, not reserved keywords. All cla
 | `for` | Who is on the other side of the boundary |
 | `context` | What entity or scope this surface applies to |
 | `let` | Local bindings, same as in rules |
-| `exposes` | Visible data |
+| `exposes` | Visible data (supports `for` iteration over collections) |
 | `requires` | What the external party must contribute |
 | `provides` | Available operations with optional when-guards |
 | `invariant` | Constraints that must hold across the boundary |
@@ -1149,7 +1226,7 @@ A valid Allium specification must satisfy:
 29. All surfaces referenced in `related`/`navigates_to` must be defined
 30. Bindings in `for` and `context` clauses must be used consistently throughout the surface
 31. `when` conditions must reference valid fields reachable from the party or context bindings
-32. `for` iterations must iterate over collection-typed fields
+32. `for` iterations must iterate over collection-typed fields (valid in `exposes`, `provides` and rule-level `for` clauses)
 33. Named `requires` and `provides` blocks must have unique names within the surface
 
 The checker should warn (but not error) on:
@@ -1263,6 +1340,7 @@ ensures: deadline = now + config.confirmation_deadline
 
 | Term | Definition |
 |------|------------|
+| **`context` (actor)** | Keyword in `identified_by` that resolves to the surface's context entity at the point of use |
 | **Context (module)** | Entity instances a module operates on; inherited by all rules in the module |
 | **Context (surface)** | Parametric scope binding for a boundary contract |
 | **Entity** | A domain concept with identity and lifecycle |
@@ -1278,7 +1356,7 @@ ensures: deadline = now + config.confirmation_deadline
 | **Parameterised Derived Value** | A derived value that takes arguments, e.g. `can_use_feature(f): f in plan.features` |
 | **Rule** | A specification of behaviour triggered by some condition |
 | **Trigger** | The condition that causes a rule to fire |
-| **Trigger Emission** | An ensures clause that emits a named event for other rules to chain from |
+| **Trigger Emission** | An ensures clause that emits a named event; other rules chain from it via their `when` clause |
 | **Precondition** | A requirement that must be true for a rule to execute |
 | **Postcondition** | An assertion about what becomes true after a rule executes |
 | **Black Box Function** | Domain logic referenced but not defined in the spec; pure and deterministic |
@@ -1287,7 +1365,9 @@ ensures: deadline = now + config.confirmation_deadline
 | **Default** | A named entity instance used as seed data or base configuration |
 | **Deferred Specification** | Complex logic defined in a separate file |
 | **Open Question** | An unresolved design decision |
+| **Entity Collection** | Pluralised type name referring to all instances of that entity (e.g., `Users` for all `User` instances) |
 | **Exists** | Keyword for checking entity existence (`exists x`) or asserting removal (`not exists x`) |
+| **`this`** | The instance of the enclosing type; valid in entity declarations and actor `identified_by` expressions |
 | **Discard Binding** | `_` used where a binding is syntactically required but the value is not needed |
 | **Actor** | An entity type that can interact with surfaces, declared with explicit identity mapping |
 | **Surface** | A boundary contract between two parties specifying what each side exposes, requires and provides |

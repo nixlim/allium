@@ -122,7 +122,7 @@ rule InvitationExpires {
 - **Temporal**: `when: invitation: Invitation.expires_at <= now` — time-based condition (always add a `requires` guard against re-firing)
 - **Derived condition**: `when: interview: Interview.all_feedback_in` — derived value becomes true
 - **Entity creation**: `when: batch: DigestBatch.created` — fires when a new entity is created
-- **Chained**: `when: AllConfirmationsResolved(candidacy)` — triggered by another rule completing
+- **Chained**: `when: AllConfirmationsResolved(candidacy)` — subscribes to a trigger emission from another rule's ensures clause
 
 All entity-scoped triggers use explicit `var: Type` binding. Use `_` as a discard binding where the name is not needed: `when: _: Invitation.expires_at <= now`, `when: SomeEvent(_, slot)`.
 

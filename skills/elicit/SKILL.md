@@ -63,7 +63,7 @@ Ask: "Could this be implemented differently while still being the same system?"
 
 Examples:
 
-- "Notifications sent via Slack". Could be email, SMS, etc. Abstract to `Notification.sent(channel: ...)`.
+- "Notifications sent via Slack". Could be email, SMS, etc. Abstract to `Notification.created(channel: ...)`.
 - "Interviewers must confirm within 3 hours". This specific deadline matters at the domain level. Include the duration.
 - "We use PostgreSQL". Could be any database. Do not include.
 - "Data is retained for 7 years for compliance". Regulatory requirement. Include.

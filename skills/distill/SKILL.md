@@ -150,7 +150,7 @@ rule SendInvitation {
         expires_at: now + 7.days,
         status: pending
     )
-    ensures: Email.sent(
+    ensures: Email.created(
         to: candidacy.candidate.email,
         template: interview_invitation
     )
@@ -185,7 +185,7 @@ For every detail in the code, ask:
 
 | Means (code) | Ends (spec) |
 |--------------|-------------|
-| `requests.post('https://slack.com/api/...')` | `Notification.sent(channel: slack)` |
+| `requests.post('https://slack.com/api/...')` | `Notification.created(channel: slack)` |
 | `candidate.oauth_token = google.exchange(code)` | `Candidate authenticated` |
 | `redis.setex(f'session:{id}', 86400, data)` | `Session.created(expires: 24.hours)` |
 | `for slot in slots: slot.status = 'cancelled'` | `slots.each(s => s.status = cancelled)` |
@@ -406,8 +406,8 @@ rule CandidateAcceptsInvitation {
         slot: slot,
         status: scheduled
     )
-    ensures: Notification.sent(to: slot.interviewers, ...)
-    ensures: Email.sent(to: invitation.candidate.email, ...)
+    ensures: Notification.created(to: slot.interviewers, ...)
+    ensures: Email.created(to: invitation.candidate.email, ...)
 }
 ```
 
@@ -420,8 +420,8 @@ rule CandidateAcceptsInvitation {
 | `if item not in collection: raise` | `requires: item in collection` |
 | `x.status = 'accepted'` | `ensures: x.status = accepted` |
 | `Model.create(...)` | `ensures: Model.created(...)` |
-| `send_email(...)` | `ensures: Email.sent(...)` |
-| `notify(...)` | `ensures: Notification.sent(...)` |
+| `send_email(...)` | `ensures: Email.created(...)` |
+| `notify(...)` | `ensures: Notification.created(...)` |
 
 ### Step 4: Find temporal triggers
 
@@ -471,7 +471,7 @@ rule InterviewReminder {
     when: interview: Interview.slot.time - 1.hour <= now
     requires: interview.status = scheduled
 
-    ensures: Notification.sent(to: interview.interviewers, template: reminder)
+    ensures: Notification.created(to: interview.interviewers, template: reminder)
 }
 ```
 
@@ -638,7 +638,7 @@ rule ImportCandidate {
 If the integration is minor, just abstract it:
 ```
 -- Don't specify Slack details, just:
-ensures: Notification.sent(
+ensures: Notification.created(
     to: interviewers,
     channel: slack
 )
@@ -798,7 +798,7 @@ def send_notification(user, message):
 
 The spec should capture the intended behaviour, not the bug:
 ```
-ensures: Notification.sent(to: user, channel: slack)
+ensures: Notification.created(to: user, channel: slack)
 ```
 
 Whether the current implementation properly handles failures is separate from what the system should do.
@@ -820,7 +820,7 @@ public class SlackNotificationStrategy implements NotificationStrategy {
 }
 ```
 
-Cut through to the actual behaviour. The spec does not need strategy patterns, dependency injection or abstract factories. Just: `ensures: Notification.sent(channel: slack, ...)`
+Cut through to the actual behaviour. The spec does not need strategy patterns, dependency injection or abstract factories. Just: `ensures: Notification.created(channel: slack, ...)`
 
 ## Checklist: Have you abstracted enough?
 
