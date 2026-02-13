@@ -43,8 +43,8 @@ entity Candidacy {
     retry_count: Integer
 
     -- Relationships
-    invitation: Invitation for this candidacy            -- one-to-one
-    slots: InterviewSlot for this candidacy              -- one-to-many
+    invitation: Invitation with candidacy = this         -- one-to-one
+    slots: InterviewSlot with candidacy = this           -- one-to-many
 
     -- Projections
     confirmed_slots: slots with status = confirmed
@@ -132,11 +132,10 @@ A `for` clause applies the rule body once per element in a collection:
 
 ```
 rule CreateDailyDigest {
-    when: time_of_day = config.digest_time
-    for user in Users with notification_settings.digest_enabled = true:
-        let settings = user.notification_settings
-        requires: today in settings.digest_day_of_week
-        ensures: DigestBatch.created(user: user, ...)
+    when: user: User.next_digest_at <= now
+    requires: user.notification_settings.digest_enabled = true
+    let settings = user.notification_settings
+    ensures: DigestBatch.created(user: user, ...)
 }
 ```
 
@@ -154,7 +153,7 @@ Entity creation uses `.created()` exclusively. Domain meaning lives in entity na
 
 ```
 surface InterviewerDashboard {
-    for viewer: Interviewer
+    facing viewer: Interviewer
 
     context assignment: SlotConfirmation with interviewer = viewer
 
@@ -172,9 +171,9 @@ surface InterviewerDashboard {
 }
 ```
 
-Surfaces define contracts at boundaries. The `for` clause names the external party, `context` scopes the entity. The remaining clauses use a single vocabulary regardless of whether the boundary is user-facing or code-to-code: `exposes` (visible data), `requires` (contributions from the external party), `provides` (available operations with optional when-guards), `invariant` (constraints that must hold), `guidance` (non-normative advice), `related` (inline panels), `navigates_to` (links to separate views), `timeout` (surface-scoped temporal triggers).
+Surfaces define contracts at boundaries. The `facing` clause names the external party, `context` scopes the entity. The remaining clauses use a single vocabulary regardless of whether the boundary is user-facing or code-to-code: `exposes` (visible data), `requires` (contributions from the external party), `provides` (available operations with optional when-guards), `invariant` (constraints that must hold), `guidance` (non-normative advice), `related` (inline panels), `navigates_to` (links to separate views), `timeout` (surface-scoped temporal triggers).
 
-Actor types used in `for` clauses need `actor` declarations with `identified_by` mappings.
+Actor types used in `facing` clauses need `actor` declarations with `identified_by` mappings.
 
 ### Surface-to-implementation contract
 

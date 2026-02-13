@@ -27,6 +27,12 @@ An Allium specification file (`.allium`) contains these sections in order:
 -- Structured data without identity (optional section)
 
 ------------------------------------------------------------
+-- Enumerations
+------------------------------------------------------------
+
+-- Named enumerations shared across entities (optional section)
+
+------------------------------------------------------------
 -- Entities and Variants
 ------------------------------------------------------------
 
@@ -124,8 +130,8 @@ entity Candidacy {
     status: pending | active | completed | cancelled
 
     -- Relationships (navigate to related entities)
-    invitation: Invitation for this candidacy
-    slots: InterviewSlot for this candidacy
+    invitation: Invitation with candidacy = this
+    slots: InterviewSlot with candidacy = this
 
     -- Projections (filtered subsets)
     confirmed_slots: slots with status = confirmed
@@ -224,8 +230,8 @@ Use sum types when variants have fundamentally different data or behaviour. Do n
 - `Boolean` — true/false
 - `Timestamp` — point in time
 - `Duration` — length of time (e.g., `24.hours`, `7.days`)
-- `Email` — email address (validated string)
-- `URL` — web address (validated string)
+
+Primitive types have no properties or methods. For domain-specific string types (email addresses, URLs), use value types or plain `String` fields with descriptive names. For operations on primitives beyond the built-in operators, use black box functions (e.g., `length(password)`, `hash(password)`).
 
 **Compound types:**
 - `Set<T>` — unordered collection of unique items
@@ -248,7 +254,10 @@ status: pending | confirmed | declined | expired
 **Named enumerations:**
 ```
 enum Recommendation { strong_yes | yes | no | strong_no }
+enum DayOfWeek { monday | tuesday | wednesday | thursday | friday | saturday | sunday }
 ```
+
+Named enumerations define a reusable set of values. Declare them alongside entities in the Entities section of the file. Reference them as field types: `recommendation: Recommendation`. Inline enums (`status: pending | active`) are equivalent but anonymous; use named enums when the same set of values appears in multiple fields or entities.
 
 **Entity references:**
 ```
@@ -262,22 +271,17 @@ Always use singular entity names; the relationship name indicates plurality:
 
 ```
 -- One-to-one (singular relationship name)
-invitation: Invitation for this candidacy
+invitation: Invitation with candidacy = this
 
 -- One-to-many (plural relationship name, but singular entity name)
-slots: InterviewSlot for this candidacy
-feedback_requests: FeedbackRequest for this interview
-```
+slots: InterviewSlot with candidacy = this
+feedback_requests: FeedbackRequest with interview = this
 
-The `for this X` syntax indicates the foreign key direction without specifying implementation.
-
-Relationships can also be declared with the `with` filter syntax:
-
-```
+-- Self-referential
 replies: Comment with reply_to = this
 ```
 
-This is equivalent to a `for this` relationship when the filter matches a foreign key, but can express conditions that `for this` cannot, such as self-referential relationships.
+The `with X = this` syntax declares a relationship by naming the field on the related entity that points back. `this` refers to the enclosing entity instance. The syntax is the same whether the relationship is one-to-one, one-to-many or self-referential.
 
 ### Projections
 
@@ -356,10 +360,9 @@ A `for` clause applies the rule body once per element in a collection. The bindi
 
 ```
 rule CreateDailyDigest {
-    when: time_of_day = config.digest_time
+    when: schedule: DigestSchedule.next_run_at <= now
     for user in Users with notification_settings.digest_enabled = true:
         let settings = user.notification_settings
-        requires: today in settings.digest_day_of_week
         ensures: DigestBatch.created(user: user, ...)
 }
 ```
@@ -476,7 +479,9 @@ for _ in items: total = total + 1
 
 ### Postconditions (ensures)
 
-Postconditions describe what becomes true. They are declarative assertions about the resulting state, not imperative commands. All ensures clauses are evaluated against the *resulting* state, after all changes have been applied.
+Postconditions describe what becomes true. They are declarative assertions about the resulting state, not imperative commands.
+
+In state change assignments (`entity.field = expression`), the expression on the right references pre-rule field values. This avoids circular definitions: `user.count = user.count + 1` means the resulting count equals the original count plus one. Conditions within ensures blocks (`if` guards, creation parameters) reference the resulting state as defined by the state changes. A `let` binding within an ensures block introduces a name visible to all subsequent statements in that block.
 
 Ensures clauses fall into three patterns:
 
@@ -607,7 +612,7 @@ let confirmation = SlotConfirmation{slot, interviewer}
 let feedback_request = FeedbackRequest{interview, interviewer}
 ```
 
-Curly braces with field names look up the specific instance where those fields match. Each name serves as both the field name on the entity and the local variable whose value is matched.
+Curly braces with field names look up the specific instance where those fields match. Any number of fields can be specified. Each name serves as both the field name on the entity and the local variable whose value is matched.
 
 When the local variable name differs from the field name, use the explicit form:
 
@@ -679,7 +684,11 @@ candidacy.retry_count + 1
 interview.slot.time.start - now
 feedback_request.requested_at + 24.hours
 now + 7.days
+recent_failures.count / config.window_sample_size
+price * quantity
 ```
+
+Four operators: `+`, `-`, `*`, `/`. Standard precedence: `*` and `/` bind tighter than `+` and `-`. Use parentheses to override.
 
 ### Boolean logic
 
@@ -797,9 +806,12 @@ Black box functions are pure (no side effects) and deterministic for the same in
 
 ### The `with` keyword
 
-`with` serves a single purpose across all contexts: it filters a collection or type by a predicate.
+`with` filters a collection or type by a predicate. It appears in relationships, projections, surface context, actor identification and iteration.
 
 ```
+-- Relationships
+slots: InterviewSlot with candidacy = this
+
 -- Projections
 slots with status = confirmed
 
@@ -809,7 +821,7 @@ context assignment: SlotConfirmation with interviewer = viewer
 -- Actor identification
 User with role = admin
 
--- Rule-level for
+-- Iteration
 for user in Users with digest_enabled = true:
 ```
 
@@ -872,7 +884,7 @@ config {
 Rules reference config values with dot notation:
 
 ```
-requires: password.length >= config.min_password_length
+requires: length(password) >= config.min_password_length
 ensures: token.expires_at = now + config.reset_token_expiry
 ```
 
@@ -1051,7 +1063,7 @@ Two keywords are available inside `identified_by`:
 
 ```
 surface WorkspaceManagement {
-    for admin: WorkspaceAdmin
+    facing admin: WorkspaceAdmin
     context workspace: Workspace    -- 'context' in WorkspaceAdmin resolves to this workspace
     ...
 }
@@ -1059,13 +1071,13 @@ surface WorkspaceManagement {
 
 An actor declaration that uses `context` can only be used in surfaces that declare a `context` clause. The types must be compatible: if the `identified_by` expression navigates through `context` expecting a Workspace, the surface's context must bind a Workspace.
 
-For integration surfaces where the external party is code rather than a person, the `for` clause may name a logical role without a formal actor declaration.
+For integration surfaces where the external party is code rather than a person, the `facing` clause may name a logical role without a formal actor declaration.
 
 ### Surface structure
 
 ```
 surface SurfaceName {
-    for party: ActorType [with predicate]
+    facing party: ActorType [with predicate]
     context item: EntityType [with predicate]
     let binding = expression
 
@@ -1100,7 +1112,7 @@ Variable names (`party`, `item`) are user-chosen, not reserved keywords. All cla
 
 | Clause | Purpose |
 |--------|---------|
-| `for` | Who is on the other side of the boundary |
+| `facing` | Who is on the other side of the boundary |
 | `context` | What entity or scope this surface applies to |
 | `let` | Local bindings, same as in rules |
 | `exposes` | Visible data (supports `for` iteration over collections) |
@@ -1116,7 +1128,7 @@ Variable names (`party`, `item`) are user-chosen, not reserved keywords. All cla
 
 ```
 surface InterviewerPendingAssignments {
-    for viewer: Interviewer
+    facing viewer: Interviewer
 
     context assignment: InterviewAssignment
         with interviewer = viewer and status = pending
@@ -1134,7 +1146,7 @@ surface InterviewerPendingAssignments {
 
 ```
 surface InterviewerDashboard {
-    for viewer: Interviewer
+    facing viewer: Interviewer
 
     context assignment: SlotConfirmation with interviewer = viewer
 
@@ -1160,7 +1172,7 @@ surface InterviewerDashboard {
 
 ```
 surface InvitationView {
-    for recipient: Candidate
+    facing recipient: Candidate
 
     context invitation: ResourceInvitation with email = recipient.email
 
@@ -1188,46 +1200,47 @@ A valid Allium specification must satisfy:
 3. All relationships reference valid entities (singular names)
 4. All rules have at least one trigger and at least one ensures clause
 5. All triggers are valid (external stimulus, state transition, entity creation, temporal, derived or chained)
+6. All rules sharing a trigger name must use the same parameter list
 
 **State machine validity:**
-6. All status values are reachable via some rule
-7. All non-terminal status values have exits
-8. No undefined states: rules cannot set status to values not in the enum
+7. All status values are reachable via some rule
+8. All non-terminal status values have exits
+9. No undefined states: rules cannot set status to values not in the enum
 
 **Expression validity:**
-9. No circular dependencies in derived values
-10. All variables are bound before use
-11. Type consistency in comparisons and arithmetic
-12. All lambdas are explicit (use `i => i.field` not `field`)
+10. No circular dependencies in derived values
+11. All variables are bound before use
+12. Type consistency in comparisons and arithmetic
+13. All lambdas are explicit (use `i => i.field` not `field`)
 
 **Sum type validity:**
-13. Sum type discriminators use the pipe syntax with capitalised variant names (`A | B | C`)
-14. All names in a discriminator field must be declared as `variant X : BaseEntity`
-15. All variants that extend a base entity must be listed in that entity's discriminator field
-16. Variant-specific fields are only accessed within type guards (`requires:` or `if` branches)
-17. Base entities with sum type discriminators cannot be instantiated directly
-18. Discriminator field names are user-defined (e.g., `kind`, `node_type`), no reserved name
-19. The `variant` keyword is required for variant declarations
+14. Sum type discriminators use the pipe syntax with capitalised variant names (`A | B | C`)
+15. All names in a discriminator field must be declared as `variant X : BaseEntity`
+16. All variants that extend a base entity must be listed in that entity's discriminator field
+17. Variant-specific fields are only accessed within type guards (`requires:` or `if` branches)
+18. Base entities with sum type discriminators cannot be instantiated directly
+19. Discriminator field names are user-defined (e.g., `kind`, `node_type`), no reserved name
+20. The `variant` keyword is required for variant declarations
 
 **Context validity:**
-20. Context bindings must reference entity types declared in the module or imported via `use`
-21. Each binding name must be unique within the context block
-22. Unqualified instance references in rules must resolve to a context binding, a `let` binding, a trigger parameter or a default entity instance
+21. Context bindings must reference entity types declared in the module or imported via `use`
+22. Each binding name must be unique within the context block
+23. Unqualified instance references in rules must resolve to a context binding, a `let` binding, a trigger parameter or a default entity instance
 
 **Config validity:**
-23. Config parameters must have explicit types and default values
-24. Config parameter names must be unique within the config block
-25. References to `config.field` in rules must correspond to a declared parameter in the local config block or a qualified external config (`alias/config.field`)
+24. Config parameters must have explicit types and default values
+25. Config parameter names must be unique within the config block
+26. References to `config.field` in rules must correspond to a declared parameter in the local config block or a qualified external config (`alias/config.field`)
 
 **Surface validity:**
-26. Actor types in `for` clauses should have corresponding `actor` declarations when the external party is an entity type
-27. All fields referenced in `exposes` must exist on the context entity, be reachable via relationships, or be declared types from imported specifications
-28. All triggers referenced in `provides` must be defined as external stimulus triggers in rules
-29. All surfaces referenced in `related`/`navigates_to` must be defined
-30. Bindings in `for` and `context` clauses must be used consistently throughout the surface
-31. `when` conditions must reference valid fields reachable from the party or context bindings
-32. `for` iterations must iterate over collection-typed fields (valid in `exposes`, `provides` and rule-level `for` clauses)
-33. Named `requires` and `provides` blocks must have unique names within the surface
+27. Actor types in `facing` clauses should have corresponding `actor` declarations when the external party is an entity type
+28. All fields referenced in `exposes` must exist on the context entity, be reachable via relationships, or be declared types from imported specifications
+29. All triggers referenced in `provides` must be defined as external stimulus triggers in rules
+30. All surfaces referenced in `related`/`navigates_to` must be defined
+31. Bindings in `facing` and `context` clauses must be used consistently throughout the surface
+32. `when` conditions must reference valid fields reachable from the party or context bindings
+33. `for` iterations must iterate over collection-typed fields (valid in `exposes`, `provides` and rule-level `for` clauses)
+34. Named `requires` and `provides` blocks must have unique names within the surface
 
 The checker should warn (but not error) on:
 - External entities without known governing specification
@@ -1368,6 +1381,8 @@ ensures: deadline = now + config.confirmation_deadline
 | **Entity Collection** | Pluralised type name referring to all instances of that entity (e.g., `Users` for all `User` instances) |
 | **Exists** | Keyword for checking entity existence (`exists x`) or asserting removal (`not exists x`) |
 | **`this`** | The instance of the enclosing type; valid in entity declarations and actor `identified_by` expressions |
+| **Enum** | A named set of values, reusable across fields and entities |
 | **Discard Binding** | `_` used where a binding is syntactically required but the value is not needed |
 | **Actor** | An entity type that can interact with surfaces, declared with explicit identity mapping |
+| **`facing`** | Surface clause naming the external party on the other side of the boundary |
 | **Surface** | A boundary contract between two parties specifying what each side exposes, requires and provides |

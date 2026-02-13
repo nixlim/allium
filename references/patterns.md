@@ -37,15 +37,15 @@ config {
 ------------------------------------------------------------
 
 entity User {
-    email: Email
+    email: String
     password_hash: String          -- stored, never exposed
     status: active | locked | deactivated
     failed_login_attempts: Integer
     locked_until: Timestamp?
 
     -- Relationships
-    sessions: Session for this user
-    reset_tokens: PasswordResetToken for this user
+    sessions: Session with user = this
+    reset_tokens: PasswordResetToken with user = this
 
     -- Projections
     active_sessions: sessions with status = active
@@ -75,6 +75,12 @@ entity PasswordResetToken {
     is_valid: status = pending and expires_at > now
 }
 
+entity Email {
+    to: String
+    template: String
+    data: String?
+}
+
 ------------------------------------------------------------
 -- Registration
 ------------------------------------------------------------
@@ -83,7 +89,7 @@ rule Register {
     when: UserRegisters(email, password)
 
     requires: not exists User{email: email}
-    requires: password.length >= config.min_password_length
+    requires: length(password) >= config.min_password_length
 
     ensures: User.created(
         email: email,
@@ -214,7 +220,7 @@ rule CompletePasswordReset {
     when: UserResetsPassword(token, new_password)
 
     requires: token.is_valid
-    requires: new_password.length >= config.min_password_length
+    requires: length(new_password) >= config.min_password_length
 
     let user = token.user
 
@@ -254,7 +260,7 @@ actor AuthenticatedUser {
 ------------------------------------------------------------
 
 surface Authentication {
-    for visitor: User
+    facing visitor: User
 
     requires:
         email
@@ -274,7 +280,7 @@ surface Authentication {
 }
 
 surface PasswordReset {
-    for visitor: User
+    facing visitor: User
 
     context token: PasswordResetToken
 
@@ -294,7 +300,7 @@ surface PasswordReset {
 }
 
 surface AccountManagement {
-    for user: AuthenticatedUser
+    facing user: AuthenticatedUser
 
     exposes:
         user.email
@@ -317,7 +323,7 @@ surface AccountManagement {
 - Bulk updates (`user.active_sessions.each(...)`)
 - Explicit `let` binding for created entities
 - Black box functions (`hash()`, `verify()`)
-- Surfaces with `for` iteration in `provides`
+- Surfaces with `facing` declaration and `for` iteration in `provides`
 
 ---
 
@@ -350,7 +356,7 @@ entity Role {
 }
 
 entity User {
-    email: Email
+    email: String
     name: String
 }
 
@@ -359,7 +365,7 @@ entity Workspace {
     owner: User
 
     -- Relationships
-    memberships: WorkspaceMembership for this workspace
+    memberships: WorkspaceMembership with workspace = this
 
     -- Projections
     members: memberships -> user
@@ -529,7 +535,7 @@ actor WorkspaceViewer {
 ------------------------------------------------------------
 
 surface WorkspaceMemberManagement {
-    for admin: WorkspaceAdmin
+    facing admin: WorkspaceAdmin
 
     context workspace: Workspace
 
@@ -550,7 +556,7 @@ surface WorkspaceMemberManagement {
 }
 
 surface WorkspaceDocuments {
-    for member: User
+    facing member: User
 
     context workspace: Workspace
 
@@ -607,8 +613,8 @@ entity Resource {
     owner: User
 
     -- Relationships
-    shares: ResourceShare for this resource
-    invitations: ResourceInvitation for this resource
+    shares: ResourceShare with resource = this
+    invitations: ResourceInvitation with resource = this
 
     -- Projections
     active_shares: shares with status = active
@@ -631,7 +637,7 @@ entity ResourceShare {
 
 entity ResourceInvitation {
     resource: Resource
-    email: Email
+    email: String
     permission: view | edit | admin
     invited_by: User
     created_at: Timestamp
@@ -683,7 +689,7 @@ rule InviteToResource {
 ------------------------------------------------------------
 
 rule AcceptInvitationExistingUser {
-    when: AcceptInvitation(invitation, user)
+    when: ExistingUserAcceptsInvitation(invitation, user)
 
     requires: invitation.is_valid
     requires: user.email = invitation.email
@@ -708,7 +714,7 @@ rule AcceptInvitationExistingUser {
 ------------------------------------------------------------
 
 rule AcceptInvitationNewUser {
-    when: AcceptInvitation(invitation, email, name, password)
+    when: NewUserAcceptsInvitation(invitation, email, name, password)
 
     requires: invitation.is_valid
     requires: email = invitation.email
@@ -805,7 +811,7 @@ rule RevokeShare {
 ------------------------------------------------------------
 
 surface ResourceSharing {
-    for sharer: User
+    facing sharer: User
 
     context resource: Resource
 
@@ -832,7 +838,7 @@ surface ResourceSharing {
 }
 
 surface InvitationResponse {
-    for recipient: User
+    facing recipient: User
 
     context invitation: ResourceInvitation with email = recipient.email
 
@@ -844,7 +850,7 @@ surface InvitationResponse {
         invitation.is_valid
 
     provides:
-        AcceptInvitation(invitation, recipient)
+        ExistingUserAcceptsInvitation(invitation, recipient)
             when invitation.is_valid
         DeclineInvitation(invitation)
             when invitation.is_valid
@@ -853,7 +859,7 @@ surface InvitationResponse {
 
 **Key language features shown:**
 - Complex permission logic in `requires`
-- Multiple rules for same trigger with different shapes (existing vs new user)
+- Distinct trigger names for different parameter shapes (`ExistingUserAcceptsInvitation` vs `NewUserAcceptsInvitation`)
 - Invitation lifecycle (pending → accepted/declined/expired/revoked)
 - Checking existence with `exists` keyword
 - Permission escalation prevention (`can't invite as admin unless owner`)
@@ -900,7 +906,7 @@ entity Workspace {
     name: String
 
     -- Relationships
-    all_documents: Document for this workspace
+    all_documents: Document with workspace = this
 
     -- Projections (what users typically see)
     documents: all_documents with status = active
@@ -1013,13 +1019,13 @@ This pattern handles in-app notifications with user-controlled email preferences
 ------------------------------------------------------------
 
 entity User {
-    email: Email
+    email: String
     name: String
     next_digest_at: Timestamp?
 
     -- Relationships
-    notification_settings: NotificationSetting for this user
-    notifications: Notification for this user
+    notification_settings: NotificationSetting with user = this
+    notifications: Notification with user = this
 
     -- Projections
     unread_notifications: notifications with status = unread
@@ -1088,7 +1094,7 @@ variant AssignmentNotification : Notification {
 variant SystemNotification : Notification {
     title: String
     body: String
-    link: URL?
+    link: String?
 }
 
 ------------------------------------------------------------
@@ -1307,7 +1313,7 @@ rule UpdateNotificationPreferences {
 ------------------------------------------------------------
 
 surface NotificationCentre {
-    for user: User
+    facing user: User
 
     exposes:
         user.unread_notifications
@@ -1327,7 +1333,7 @@ surface NotificationCentre {
 }
 
 surface NotificationPreferences {
-    for user: User
+    facing user: User
 
     context settings: NotificationSetting with user = user
 
@@ -1416,11 +1422,12 @@ entity Plan {
 entity Workspace {
     name: String
     plan: Plan
+    api_key: String?
 
     -- Relationships
-    documents: Document for this workspace
-    members: WorkspaceMembership for this workspace
-    usage: WorkspaceUsage for this workspace
+    documents: Document with workspace = this
+    members: WorkspaceMembership with workspace = this
+    usage: WorkspaceUsage with workspace = this
 
     -- Derived checks
     can_add_document: plan.has_unlimited_documents or documents.count < plan.max_documents
@@ -1583,7 +1590,7 @@ rule ApiRateLimitExceeded {
         status: 429,
         body: {
             error: "rate_limit_exceeded",
-            resets_at: tomorrow_midnight
+            resets_at: usage.next_reset_at
         }
     )
 }
@@ -1672,7 +1679,7 @@ actor APIConsumer {
 ------------------------------------------------------------
 
 surface UsageDashboard {
-    for owner: WorkspaceOwner
+    facing owner: WorkspaceOwner
 
     context workspace: Workspace
 
@@ -1697,7 +1704,7 @@ surface UsageDashboard {
 }
 
 surface APIAccess {
-    for consumer: APIConsumer
+    facing consumer: APIConsumer
 
     context workspace: Workspace
 
@@ -1758,9 +1765,9 @@ entity Comment {
     status: active | deleted
 
     -- Relationships
-    mentions: CommentMention for this comment
+    mentions: CommentMention with comment = this
     replies: Comment with reply_to = this
-    reactions: CommentReaction for this comment
+    reactions: CommentReaction with comment = this
 
     -- Projections
     active_replies: replies with status = active
@@ -1955,6 +1962,8 @@ rule ToggleReaction {
 
     let existing = CommentReaction{comment, user, emoji}
 
+    requires: comment.status = active
+
     ensures:
         if exists existing:
             not exists existing
@@ -1972,7 +1981,7 @@ rule ToggleReaction {
 ------------------------------------------------------------
 
 surface CommentThread {
-    for viewer: User
+    facing viewer: User
 
     context parent: Commentable
 
@@ -2057,16 +2066,16 @@ oauth/config {
 
 -- Our application's User entity, linked to OAuth identities
 entity User {
-    email: Email
+    email: String
     name: String
-    avatar_url: URL?
+    avatar_url: String?
     status: active | suspended | deactivated
     created_at: Timestamp
     last_login_at: Timestamp?
 
     -- Relationship to OAuth sessions (from external spec)
-    sessions: oauth/Session for this user
-    identities: oauth/Identity for this user
+    sessions: oauth/Session with user = this
+    identities: oauth/Identity with user = this
 
     -- Projections
     active_sessions: sessions with status = active
@@ -2178,7 +2187,7 @@ rule AuditLogout {
         event: logout,
         reason: reason,
         timestamp: now,
-        metadata: { provider: session.provider, session_id: session.id }
+        metadata: { provider: session.provider, session_start: session.created_at }
     )
 }
 
@@ -2246,13 +2255,14 @@ stripe/config {
 entity Organisation {
     name: String
     owner: User
+    billing_portal_url: String?
 
     -- Link to Stripe customer (from external spec)
     stripe_customer: stripe/Customer?
 
     -- Relationships
-    subscription: Subscription for this organisation
-    invoices: stripe/Invoice for this stripe_customer
+    subscription: Subscription with organisation = this
+    invoices: stripe/Invoice with stripe_customer = this
 
     -- Derived
     is_paying: subscription?.status = active
@@ -2468,7 +2478,7 @@ entity Document {
     deleted_by: User?
 
     -- From comments pattern
-    comments: comments/Comment for this document
+    comments: comments/Comment with document = this
 
     -- From soft-delete pattern
     retention_expires_at: deleted_at + trash/config.retention_period

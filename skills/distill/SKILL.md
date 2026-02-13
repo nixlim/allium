@@ -269,7 +269,7 @@ Spec:
 ```
 external entity Candidate {
     name: String
-    email: Email
+    email: String
     source: CandidateSource
 }
 ```
@@ -283,7 +283,7 @@ Spec:
 ```
 external entity Candidate {
     name: String
-    email: Email
+    email: String
     greenhouse_id: String?  -- explicitly modeled
 }
 
@@ -499,7 +499,7 @@ Suggests:
 ```
 external entity Candidate {
     name: String
-    email: Email
+    email: String
 }
 ```
 

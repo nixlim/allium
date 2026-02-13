@@ -173,7 +173,7 @@ def cleanup_expired_tokens():
 
 4. **Extract preconditions from validation:**
    - `if not user` becomes `requires: exists user`
-   - `len(new_password) < 12` becomes `requires: password.length >= 12`
+   - `len(new_password) < 12` becomes `requires: length(password) >= 12`
    - `token.is_valid()` becomes `requires: token.is_valid`
 
 5. **Extract postconditions from mutations:**
@@ -198,14 +198,14 @@ config {
 }
 
 entity User {
-    email: Email
+    email: String
     password_hash: String
     status: active | locked | deactivated
     failed_attempts: Integer
     locked_until: Timestamp?
 
-    reset_tokens: PasswordResetToken for this user
-    sessions: Session for this user
+    reset_tokens: PasswordResetToken with user = this
+    sessions: Session with user = this
 
     active_sessions: sessions with status = active
     pending_reset_tokens: reset_tokens with status = pending
@@ -228,7 +228,7 @@ rule RequestPasswordReset {
     requires: exists user
     requires: user.status in [active, locked]
 
-    ensures: user.pending_reset_tokens.each(t => t.status = used)
+    ensures: user.pending_reset_tokens.each(t => t.status = expired)
     ensures:
         let token = PasswordResetToken.created(
             user: user,
@@ -247,7 +247,7 @@ rule CompletePasswordReset {
     when: UserResetsPassword(token, new_password)
 
     requires: token.is_valid
-    requires: new_password.length >= config.min_password_length
+    requires: length(new_password) >= config.min_password_length
 
     let user = token.user
 
@@ -575,8 +575,8 @@ entity Workspace {
     owner: User
     plan: Plan
 
-    members: WorkspaceMember for this workspace
-    all_projects: Project for this workspace
+    members: WorkspaceMember with workspace = this
+    all_projects: Project with workspace = this
 
     -- Projections
     projects: all_projects with deleted_at = null
@@ -927,7 +927,7 @@ entity Document {
 }
 
 entity Workspace {
-    all_documents: Document for this workspace
+    all_documents: Document with workspace = this
 
     documents: all_documents with status = active
     deleted_documents: all_documents with status = deleted
