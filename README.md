@@ -82,7 +82,7 @@ rule UserRequestsPasswordReset {
         Email.created(
             to: user.email,
             template: password_reset,
-            data: { token }
+            data: { token: token }
         )
 }
 ```

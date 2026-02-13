@@ -75,12 +75,6 @@ entity PasswordResetToken {
     is_valid: status = pending and expires_at > now
 }
 
-entity Email {
-    to: String
-    template: String
-    data: String?
-}
-
 ------------------------------------------------------------
 -- Registration
 ------------------------------------------------------------
@@ -366,10 +360,24 @@ entity Workspace {
 
     -- Relationships
     memberships: WorkspaceMembership with workspace = this
+    documents: Document with workspace = this
 
     -- Projections
     members: memberships -> user
     admins: memberships with role.name = "admin" -> user
+}
+
+entity Document {
+    workspace: Workspace
+    created_by: User
+    title: String
+    content: String
+}
+
+entity DocumentView {
+    user: User
+    document: Document
+    at: Timestamp
 }
 
 -- Join entity connecting User, Workspace, and Role
@@ -444,7 +452,7 @@ rule AddMember {
     ensures: Email.created(
         to: new_user.email,
         template: added_to_workspace,
-        data: { workspace, role }
+        data: { workspace: workspace, role: role }
     )
 }
 
@@ -1426,12 +1434,12 @@ entity Workspace {
 
     -- Relationships
     documents: Document with workspace = this
-    members: WorkspaceMembership with workspace = this
+    memberships: WorkspaceMembership with workspace = this
     usage: WorkspaceUsage with workspace = this
 
     -- Derived checks
     can_add_document: plan.has_unlimited_documents or documents.count < plan.max_documents
-    can_add_member: plan.has_unlimited_members or members.count < plan.max_team_members
+    can_add_member: plan.has_unlimited_members or memberships.count < plan.max_team_members
     can_use_feature(f): f in plan.features
 }
 
@@ -1632,7 +1640,7 @@ rule DowngradePlan {
     -- Can only downgrade if under new plan's limits
     requires: workspace.documents.count <= new_plan.max_documents
               or new_plan.has_unlimited_documents
-    requires: workspace.members.count <= new_plan.max_team_members
+    requires: workspace.memberships.count <= new_plan.max_team_members
     requires: workspace.usage.storage_bytes_used <= new_plan.max_storage_bytes
               or new_plan.has_unlimited_storage
 
@@ -1647,17 +1655,25 @@ rule DowngradePlan {
 rule DowngradeBlocked {
     when: DowngradePlan(workspace, new_plan)
 
-    requires: workspace.documents.count > new_plan.max_documents
-              and not new_plan.has_unlimited_documents
+    let over_documents =
+        workspace.documents.count > new_plan.max_documents
+        and not new_plan.has_unlimited_documents
+    let over_members =
+        workspace.memberships.count > new_plan.max_team_members
+        and not new_plan.has_unlimited_members
+    let over_storage =
+        workspace.usage.storage_bytes_used > new_plan.max_storage_bytes
+        and not new_plan.has_unlimited_storage
+
+    requires: over_documents or over_members or over_storage
 
     ensures: UserInformed(
         user: workspace.owner,
         about: downgrade_blocked,
         with: {
-            reason: documents,
-            current: workspace.documents.count,
-            new_limit: new_plan.max_documents,
-            must_delete: workspace.documents.count - new_plan.max_documents
+            over_documents: over_documents,
+            over_members: over_members,
+            over_storage: over_storage
         }
     )
 }
@@ -1687,7 +1703,7 @@ surface UsageDashboard {
         workspace.plan
         workspace.documents.count
         workspace.plan.max_documents
-        workspace.members.count
+        workspace.memberships.count
         workspace.plan.max_team_members
         workspace.usage.storage_bytes_used
         workspace.plan.max_storage_bytes
@@ -1750,6 +1766,11 @@ This pattern implements comments with @mentions, including mention parsing and n
 ------------------------------------------------------------
 -- Entities
 ------------------------------------------------------------
+
+external entity User {
+    name: String
+    is_admin: Boolean
+}
 
 external entity Commentable {
     -- Defined by the consuming spec (e.g., Document, Task, Project)
@@ -2167,7 +2188,7 @@ rule NotifySessionExpiring {
 
     requires: user != null
 
-    ensures: UserNotified(
+    ensures: UserInformed(
         user: user,
         about: session_expiring,
         with: { time_remaining: session.time_remaining }
@@ -2330,7 +2351,7 @@ rule HandlePaymentFailure {
             update_payment_url: org.billing_portal_url
         }
     )
-    ensures: UserNotified(
+    ensures: UserInformed(
         user: org.owner,
         about: payment_failed,
         with: { reason: failure_reason }
@@ -2438,7 +2459,7 @@ rule CancelSubscription {
 - External spec references with immutable coordinates (`use "github.com/.../abc123" as alias`)
 - Configuration blocks for external specs (`oauth/config { ... }`)
 - Responding to external triggers (`when: oauth/AuthenticationSucceeded(...)`)
-- Trigger emissions for cross-pattern notification (`UserNotified(...)`)
+- Trigger emissions for cross-pattern notification (`UserInformed(...)`)
 - Responding to external state transitions (`when: stripe/Subscription.status becomes cancelled`)
 - Using external entities (`oauth/Session`, `stripe/Customer`)
 - Linking application entities to external entities (`stripe_customer: stripe/Customer?`)

@@ -81,6 +81,12 @@ An Allium specification file (`.allium`) contains these sections in order:
 -- Unresolved design decisions
 ```
 
+### Naming conventions
+
+- **PascalCase**: entity names, variant names, rule names, trigger names, actor names, surface names (`InterviewSlot`, `CandidateSelectsSlot`)
+- **snake_case**: field names, config parameters, derived values, enum literals, relationship names (`expires_at`, `max_login_attempts`, `pending`)
+- **Entity collections**: natural English plurals of the entity name (`Users`, `Documents`, `Candidacies`)
+
 ---
 
 ## Module context
@@ -119,6 +125,22 @@ external entity Role {
 ```
 
 External entities define their structure but not their lifecycle. The specification checker will warn when external entities are referenced, reminding that another spec or system governs them.
+
+External entities can also serve as **type placeholders**: an entity with minimal or no fields that the consuming spec substitutes with a concrete type. This enables reusable patterns where the library spec depends on an abstraction and the consumer provides the implementation.
+
+```
+-- In a comments library spec
+external entity Commentable {}
+
+entity Comment {
+    parent: Commentable
+    ...
+}
+
+-- The consuming spec provides its own entity as the Commentable
+```
+
+The consuming spec maps its entity to the placeholder by using it wherever the library expects the placeholder type. This is dependency inversion at the spec level: the library depends on the abstraction, the consumer supplies the concrete type.
 
 ### Internal entities
 
@@ -227,9 +249,9 @@ Use sum types when variants have fundamentally different data or behaviour. Do n
 - `String` — text
 - `Integer` — whole numbers. Underscores are ignored in numeric literals for readability: `100_000_000`
 - `Decimal` — numbers with fractional parts (use for money, percentages)
-- `Boolean` — true/false
-- `Timestamp` — point in time
-- `Duration` — length of time (e.g., `24.hours`, `7.days`)
+- `Boolean` — `true` or `false`
+- `Timestamp` — point in time. The built-in value `now` evaluates to the current timestamp.
+- `Duration` — length of time, written as a numeric literal with a unit suffix: `.seconds`, `.minutes`, `.hours`, `.days`, `.weeks`, `.months`, `.years` (e.g., `24.hours`, `7.days`, `30.seconds`). Both singular and plural forms are valid: `1.hour` and `24.hours`.
 
 Primitive types have no properties or methods. For domain-specific string types (email addresses, URLs), use value types or plain `String` fields with descriptive names. For operations on primitives beyond the built-in operators, use black box functions (e.g., `length(password)`, `hash(password)`).
 
@@ -507,7 +529,7 @@ ensures: Interview.created(
 ensures: Email.created(
     to: candidate.email,
     template: interview_invitation,
-    data: { slots }
+    data: { slots: slots }
 )
 
 ensures: CalendarInvite.created(
@@ -786,8 +808,8 @@ permissions: { "documents.read", "documents.write" }
 features: { basic_editing, api_access }
 
 -- Object literals (in data parameters)
-data: { candidate, time }                    -- shorthand for { candidate: candidate, time: time }
-data: { slots: remaining_slots }             -- explicit key: value
+data: { candidate: candidate, time: time }
+data: { slots: remaining_slots }
 with: { unlocks_at: user.locked_until }
 ```
 
@@ -825,7 +847,9 @@ User with role = admin
 for user in Users with digest_enabled = true:
 ```
 
-Note: `with:` as a named parameter in trigger emissions (`CandidateInformed(... with: { data })`) is a parameter name, not the `with` keyword. The colon disambiguates.
+`with` predicates use explicit comparisons. For boolean fields, write `with digest_enabled = true` rather than `with digest_enabled`. This contrasts with `requires`, which accepts bare boolean expressions: `requires: user.digest_enabled`.
+
+Note: `with:` as a named parameter in trigger emissions (`CandidateInformed(... with: { data: data })`) is a parameter name, not the `with` keyword. The colon disambiguates.
 
 ### Entity collections
 
@@ -1277,7 +1301,7 @@ let request = FeedbackRequest{interview, interviewer}
 ensures: Button.displayed(label: "Confirm", onClick: ...)
 
 -- Good
-ensures: CandidateInformed(about: options_available, with: { slots })
+ensures: CandidateInformed(about: options_available, with: { slots: slots })
 ```
 
 **Algorithm in rules:**

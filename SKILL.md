@@ -132,22 +132,24 @@ A `for` clause applies the rule body once per element in a collection:
 
 ```
 rule CreateDailyDigest {
-    when: user: User.next_digest_at <= now
-    requires: user.notification_settings.digest_enabled = true
-    let settings = user.notification_settings
-    ensures: DigestBatch.created(user: user, ...)
-}
+    when: schedule: DigestSchedule.next_run_at <= now
+    for user in Users with notification_settings.digest_enabled = true:
+        let settings = user.notification_settings
+        ensures: DigestBatch.created(user: user, ...)
 ```
 
 ### Ensures patterns
 
-Ensures clauses have three forms:
+Ensures clauses have four forms:
 
 - **State changes**: `entity.field = value`
 - **Entity creation**: `Entity.created(...)` — the single canonical creation verb
 - **Trigger emission**: `TriggerName(params)` — emits an event for other rules to chain from
+- **Entity removal**: `not exists entity` — asserts the entity no longer exists
 
 Entity creation uses `.created()` exclusively. Domain meaning lives in entity names and rule names, not in creation verbs.
+
+In state change assignments, the right-hand expression references pre-rule field values. Conditions within ensures blocks (`if` guards, creation parameters) reference the resulting state.
 
 ### Surface
 
@@ -173,7 +175,7 @@ surface InterviewerDashboard {
 
 Surfaces define contracts at boundaries. The `facing` clause names the external party, `context` scopes the entity. The remaining clauses use a single vocabulary regardless of whether the boundary is user-facing or code-to-code: `exposes` (visible data), `requires` (contributions from the external party), `provides` (available operations with optional when-guards), `invariant` (constraints that must hold), `guidance` (non-normative advice), `related` (inline panels), `navigates_to` (links to separate views), `timeout` (surface-scoped temporal triggers).
 
-Actor types used in `facing` clauses need `actor` declarations with `identified_by` mappings.
+Actor types used in `facing` clauses have corresponding `actor` declarations with `identified_by` mappings. When the external party is code rather than a person, the `facing` clause may name a logical role without a formal actor declaration.
 
 ### Surface-to-implementation contract
 
