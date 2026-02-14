@@ -298,7 +298,7 @@ enum DayOfWeek { monday | tuesday | wednesday | thursday | friday | saturday | s
 
 Named enumerations define a reusable set of values. Declare them in the Enumerations section of the file. Reference them as field types: `recommendation: Recommendation`. Inline enums (`status: pending | active`) are equivalent but anonymous; use named enums when the same set of values appears in multiple fields or entities.
 
-Inline enums are anonymous: they have no type identity. Two inline enum fields cannot be compared with each other, whether on the same entity or across entities, because non-shared values silently evaluate to false rather than producing a type error. Use a named enum when values need to be compared across fields. Named enums are distinct types: a field typed `Recommendation` cannot be compared with a field typed `DayOfWeek`, even if they happen to share a literal.
+Inline enums are anonymous: they have no type identity. Two inline enum fields cannot be compared with each other, whether on the same entity or across entities; the checker reports an error. Use a named enum when values need to be compared across fields. Named enums are distinct types: a field typed `Recommendation` cannot be compared with a field typed `DayOfWeek`, even if they happen to share a literal.
 
 **Entity references:**
 ```
@@ -833,6 +833,8 @@ ensures:
     for d in workspace.deleted_documents:
         not exists d
 ```
+
+If the entity is already absent, the postcondition is trivially satisfied (no error, no operation). This follows from declarative semantics: `not exists x` asserts a property of the resulting state, not an imperative command.
 
 This is distinct from soft delete, which changes a field rather than removing the entity:
 
@@ -1474,8 +1476,8 @@ ensures: deadline = now + config.confirmation_deadline
 
 | Term | Definition |
 |------|------------|
-| **Given (module)** | Entity instances a module operates on, declared with `given { ... }`; inherited by all rules in the module |
-| **Context (surface)** | Parametric scope binding for a boundary contract, declared with `context` inside a surface |
+| **Given (module)** | Entity instances a module operates on, declared with `given { ... }`; inherited by all rules in the module. Binds singleton instances at module scope. Contrast with **Context**, which is parametric |
+| **Context (surface)** | Parametric scope binding for a boundary contract, declared with `context` inside a surface. Creates one surface instance per matching entity. Contrast with **Given**, which binds singleton instances at module scope |
 | **Entity** | A domain concept with identity and lifecycle |
 | **Value** | Structured data without identity, compared by structure |
 | **Sum Type** | Entity constrained to exactly one of several variants via a discriminator field |
@@ -1502,7 +1504,7 @@ ensures: deadline = now + config.confirmation_deadline
 | **Exists** | Keyword for checking entity existence (`exists x`) or asserting removal (`not exists x`) |
 | **`within`** | Clause in actor declarations that names the required context type; also a keyword in `identified_by` expressions that resolves to the surface's context entity |
 | **`this`** | The instance of the enclosing type; valid in entity declarations and actor `identified_by` expressions |
-| **Enum** | A named set of values, reusable across fields and entities |
+| **Enum** | A set of values. **Named enums** (`enum Recommendation { ... }`) have type identity and are reusable across fields and entities. **Inline enums** (`status: pending \| active`) are anonymous, scoped to a single field, and cannot be compared across fields |
 | **Discard Binding** | `_` used where a binding is syntactically required but the value is not needed |
 | **Actor** | An entity type that can interact with surfaces, declared with explicit identity mapping |
 | **`facing`** | Surface clause naming the external party on the other side of the boundary |
