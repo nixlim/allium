@@ -281,9 +281,9 @@ requires: request.reminded_at = null      -- field is absent/unset
 requires: request.reminded_at != null     -- field has a value
 ```
 
-`null` represents the absence of a value for optional fields. It is not a value itself.
+`null` represents the absence of a value for optional fields.
 
-`field = null` and `field != null` are presence checks, not comparisons. `field = null` is true when the field is absent; `field != null` is true when the field has a value. All other expressions involving null (arithmetic, ordering, equality with non-null values) evaluate to false or propagate null: `null <= now` is false, `null > 0` is false, `null + 1.day` produces null. This means temporal triggers on optional fields (e.g., `when: user: User.next_digest_at <= now`) do not fire when the field is absent.
+`field = null` and `field != null` are presence checks, not comparisons. `field = null` is true when the field is absent; `field != null` is true when the field has a value. Comparisons with null produce false: `null <= now` is false, `null > 0` is false. Arithmetic with null produces null: `null + 1.day` is null. This means temporal triggers on optional fields (e.g., `when: user: User.next_digest_at <= now`) do not fire when the field is absent.
 
 **Enumerated types (inline):**
 ```
@@ -1319,7 +1319,7 @@ A valid Allium specification must satisfy:
 30. All surfaces referenced in `related`/`navigates_to` must be defined
 31. Bindings in `facing` and `context` clauses must be used consistently throughout the surface
 32. `when` conditions must reference valid fields reachable from the party or context bindings
-33. `for` iterations must iterate over collection-typed fields or bindings and are valid in any block scope (including `exposes`, `provides`, `ensures`, rule-level `for` clauses and surface `let` bindings)
+33. `for` iterations must iterate over collection-typed fields or bindings and are valid in any indented block scope
 
 The checker should warn (but not error) on:
 - External entities without known governing specification
@@ -1484,5 +1484,5 @@ ensures: deadline = now + config.confirmation_deadline
 | **Discard Binding** | `_` used where a binding is syntactically required but the value is not needed |
 | **Actor** | An entity type that can interact with surfaces, declared with explicit identity mapping |
 | **`facing`** | Surface clause naming the external party on the other side of the boundary |
-| **Contribution (surface `expects`)** | Data the external party must supply to the surface (bare names, not boolean expressions) |
+| **`expects`** | Surface clause declaring data the external party must supply (bare names, not boolean expressions) |
 | **Surface** | A boundary contract between two parties specifying what each side exposes, expects and provides |
