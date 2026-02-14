@@ -300,6 +300,25 @@ Named enumerations define a reusable set of values. Declare them in the Enumerat
 
 Inline enums are anonymous: they have no type identity. Two inline enum fields cannot be compared with each other, whether on the same entity or across entities; the checker reports an error. Use a named enum when values need to be compared across fields. Named enums are distinct types: a field typed `Recommendation` cannot be compared with a field typed `DayOfWeek`, even if they happen to share a literal.
 
+This catches a common mistake when tracking previous state:
+
+```
+-- Error: cannot compare two inline enum fields
+entity Order {
+    status: pending | shipped | delivered
+    previous_status: pending | shipped | delivered
+}
+requires: order.status != order.previous_status    -- checker error
+
+-- Fix: extract a named enum
+enum OrderStatus { pending | shipped | delivered }
+entity Order {
+    status: OrderStatus
+    previous_status: OrderStatus
+}
+requires: order.status != order.previous_status    -- valid
+```
+
 **Entity references:**
 ```
 candidate: Candidate
@@ -548,6 +567,19 @@ ensures:
 ```
 
 The assignment reads 100 (the pre-rule value). The `if` guard reads 150 (the resulting state after the assignment).
+
+Common mistake: assuming `if` guards in ensures read pre-rule values. Suppose `order.status` is `pending` before the rule fires.
+
+```
+ensures: order.status = shipped
+ensures:
+    if order.status = pending:                             -- WRONG: reads resulting state (shipped), so this is false
+        Notification.created(to: order.customer, template: order_pending_reminder)
+    if order.status = shipped:                             -- reads resulting state (shipped), so this is true
+        Notification.created(to: order.customer, template: order_shipped)
+```
+
+The author likely meant "if the order was pending before we changed it". But the `if` guard inside ensures reads the resulting state, not the pre-rule state. To test pre-rule values, use a `let` binding or `requires` clause before the ensures block.
 
 Ensures clauses have four forms:
 
@@ -876,7 +908,7 @@ Black box functions are pure (no side effects) and deterministic for the same in
 
 ### The `with` and `where` keywords
 
-Both keywords apply a predicate to select a subset. They differ in what they operate on:
+Both keywords apply a predicate to select a subset. They differ in what they operate on: `with` defines which entities are related; `where` refines which of those you see.
 
 - **`with`** appears in relationship declarations. The input is the universe of all instances of an entity type and the predicate defines the structural link. A `with` clause must reference `this`.
 - **`where`** appears in projections, iteration, surface context, actor identification and surface `let` bindings. The input is an existing collection or entity type and the predicate filters it. A `where` clause must not reference `this`.
