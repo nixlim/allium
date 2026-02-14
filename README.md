@@ -68,16 +68,21 @@ Allium applies the same pattern. Code excels at expressing *how*; behavioural mo
 Allium provides a minimal syntax for describing events with their preconditions and the outcomes that result. The language deliberately excludes implementation details such as database schemas and API designs, focusing purely on observable behaviour.
 
 ```allium
-rule UserRequestsPasswordReset {
-    when: UserRequestsReset(user, email)
+rule RequestPasswordReset {
+    when: UserRequestsPasswordReset(email)
 
-    requires: email = user.email
-    requires: user.status = active
+    let user = User{email}
 
+    requires: exists user
+    requires: user.status in [active, locked]
+
+    ensures: user.pending_reset_tokens.each(t => t.status = expired)
     ensures:
-        let token = ResetToken.created(
+        let token = PasswordResetToken.created(
             user: user,
-            expires_at: now + config.reset_token_expiry
+            created_at: now,
+            expires_at: now + config.reset_token_expiry,
+            status: pending
         )
         Email.created(
             to: user.email,
@@ -87,7 +92,7 @@ rule UserRequestsPasswordReset {
 }
 ```
 
-This rule captures observable behaviour: when a user requests a password reset, if the email matches and the account is active, a token is created and an email is sent. It says nothing about which database stores the token or which service sends the email, because those decisions belong to implementation.
+This rule captures observable behaviour: when a password reset is requested, if the email matches an active or locked account, existing tokens are invalidated, a new token is created and an email is sent. It says nothing about which database stores the token or which service sends the email, because those decisions belong to implementation.
 
 The same syntax works whether you're capturing infrastructure contracts or operational policy. A circuit breaker specification describes behaviour that typically lives in library defaults, Grafana alerts and architecture docs, never in any formal specification:
 
@@ -168,7 +173,7 @@ A customer's account was suspended for a terms of service violation. They've app
 
 > ***> A customer says they can't reset their password. Their account was suspended last month but they've appealed and we want to let them back in. Can you enable password reset for suspended users?***
 >
-> ✻ Your Allium requires `user.status = active` for password resets. This user's status is `suspended`, so the reset is blocked by design. Reactivating through password reset would bypass your `AccountReinstated` rule, which requires admin approval and logs an audit trail.
+> ✻ Your Allium requires `user.status in [active, locked]` for password resets. This user's status is `suspended`, so the reset is blocked by design. Reactivating through password reset would bypass your `AccountReinstated` rule, which requires admin approval and logs an audit trail.
 >
 > ✻ Should we reinstate the account through the existing admin flow first, then let them reset their password? Or create a new `AccountReinstatedViaAppeal` rule that combines both steps with the audit trail intact?
 >
@@ -226,7 +231,7 @@ A developer asks the LLM to check whether the code still matches the Allium.
 
 > ***> Can you check whether our authentication code matches the Allium?***
 >
-> ✻ I found a divergence. Your Allium says `LoginAttempt` requires `user.failed_attempts < config.max_login_attempts`, configured as 5. But `auth/login.py` line 47 hardcodes the limit at 3 and doesn't reset the counter after a successful login. The Allium says `UserAuthenticates` ensures `user.failed_attempts = 0`.
+> ✻ I found a divergence. Your Allium says `LoginFailure` checks `user.failed_login_attempts >= config.max_login_attempts`, configured as 5. But `auth/login.py` line 47 hardcodes the limit at 3 and doesn't reset the counter after a successful login. The Allium says `LoginSuccess` ensures `user.failed_login_attempts = 0`.
 >
 > ✻ Either the code drifted or the Allium is aspirational. Which should we trust?
 >

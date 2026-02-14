@@ -529,15 +529,15 @@ rule ViewDocument {
 ------------------------------------------------------------
 
 actor WorkspaceAdmin {
-    identified_by: User with WorkspaceMembership{user: this, workspace: context}.can_admin
+    identified_by: User with WorkspaceMembership{user: this, workspace: context}.can_admin = true
 }
 
 actor WorkspaceEditor {
-    identified_by: User with WorkspaceMembership{user: this, workspace: context}.can_write
+    identified_by: User with WorkspaceMembership{user: this, workspace: context}.can_write = true
 }
 
 actor WorkspaceViewer {
-    identified_by: User with WorkspaceMembership{user: this, workspace: context}.can_read
+    identified_by: User with WorkspaceMembership{user: this, workspace: context}.can_read = true
 }
 
 ------------------------------------------------------------
@@ -1608,8 +1608,6 @@ rule ApiRateLimitExceeded {
 
 rule ResetDailyApiUsage {
     when: usage: WorkspaceUsage.next_reset_at <= now
-
-    requires: usage.api_requests_today > 0
 
     ensures: usage.api_requests_today = 0
     ensures: usage.next_reset_at = usage.next_reset_at + 1.day

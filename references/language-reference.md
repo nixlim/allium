@@ -81,6 +81,10 @@ An Allium specification file (`.allium`) contains these sections in order:
 -- Unresolved design decisions
 ```
 
+### Formatting
+
+Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `else`, `ensures`, `exposes`, `provides`, `requires` (in surfaces) and `related` are delimited by consistent indentation relative to the parent clause. Comments use `--`. Commas may be used as field separators for single-line entity and value type declarations; newlines are the standard separator for multi-line declarations.
+
 ### Naming conventions
 
 - **PascalCase**: entity names, variant names, rule names, trigger names, actor names, surface names (`InterviewSlot`, `CandidateSelectsSlot`)
@@ -241,6 +245,17 @@ rule ProcessNode {
 
 Accessing variant-specific fields outside a type guard is an error. Sum types guarantee exhaustiveness (all variants declared upfront), mutual exclusivity (exactly one variant), type safety (variant fields only within guards) and automatic discrimination (set on creation).
 
+A `.created` trigger on the base entity fires when any variant is created. The bound variable holds the specific variant instance, and type guards can narrow it:
+
+```
+rule HandleNotification {
+    when: notification: Notification.created
+    ensures:
+        if notification.kind = MentionNotification:
+            ...
+}
+```
+
 Use sum types when variants have fundamentally different data or behaviour. Do not use when simple status enums suffice or variants share most of their structure.
 
 ### Field types
@@ -266,7 +281,9 @@ requires: request.reminded_at = null      -- field is absent/unset
 requires: request.reminded_at != null     -- field has a value
 ```
 
-`null` represents the absence of a value for optional fields. It is not a value itself. Any comparison involving `null` evaluates to false: `null <= now` is false, `null = null` is false, `null != x` is false. This means temporal triggers on optional fields (e.g., `when: user: User.next_digest_at <= now`) do not fire when the field is absent. To check whether a field has a value, use explicit null checks (`field = null`, `field != null`).
+`null` represents the absence of a value for optional fields. It is not a value itself.
+
+`field = null` and `field != null` are presence checks, not comparisons. `field = null` is true when the field is absent; `field != null` is true when the field has a value. All other expressions involving null (arithmetic, ordering, equality with non-null values) evaluate to false or propagate null: `null <= now` is false, `null > 0` is false, `null + 1.day` produces null. This means temporal triggers on optional fields (e.g., `when: user: User.next_digest_at <= now`) do not fire when the field is absent.
 
 **Enumerated types (inline):**
 ```
@@ -307,7 +324,7 @@ The `with X = this` syntax declares a relationship by naming the field on the re
 
 The relationship name determines the cardinality:
 
-- **Singular name** (e.g., `invitation`) — at most one related entity. The value is the entity instance, or `null` if none exists. Equivalent to `T?`.
+- **Singular name** (e.g., `invitation`) — at most one related entity. The value is the entity instance, or `null` if none exists. Equivalent to `T?`. If multiple entities match a singular relationship, the specification is in error and the checker should report it.
 - **Plural name** (e.g., `slots`) — zero or more related entities. The value is a collection, empty if none exist.
 
 ### Projections
@@ -421,7 +438,7 @@ when: interview: Interview.status becomes scheduled
 when: confirmation: SlotConfirmation.status becomes confirmed
 ```
 
-The variable before the colon binds the entity that triggered the transition.
+The variable before the colon binds the entity that triggered the transition. `becomes` fires when a field transitions to the specified value from a different value, not on initial entity creation (use `.created` for that). It is valid for enum fields, boolean fields and entity reference fields.
 
 **Temporal** — time-based condition:
 ```
@@ -639,7 +656,7 @@ let confirmation = SlotConfirmation{slot, interviewer}
 let feedback_request = FeedbackRequest{interview, interviewer}
 ```
 
-Curly braces with field names look up the specific instance where those fields match. Any number of fields can be specified. Each name serves as both the field name on the entity and the local variable whose value is matched. The lookup must match at most one entity; if the fields do not uniquely identify a single instance, the specification is ambiguous and the checker should report an error.
+Curly braces with field names look up the specific instance where those fields match. Any number of fields can be specified. Each name serves as both the field name on the entity and the local variable whose value is matched. The lookup must match at most one entity; if the fields do not uniquely identify a single instance, the specification is ambiguous and the checker should report an error. If no entity matches, the binding is null. Use `exists` to test whether a lookup matched before accessing fields on it; accessing fields on a null binding is an error.
 
 When the local variable name differs from the field name, use the explicit form:
 
@@ -704,6 +721,8 @@ status in [confirmed, declined, expired]
 provider not in user.linked_providers
 ```
 
+`[value1, value2, ...]` is an inline value set used with `in` and `not in` for membership tests. It is not a general-purpose list literal.
+
 ### Arithmetic
 
 ```
@@ -715,7 +734,7 @@ recent_failures.count / config.window_sample_size
 price * quantity
 ```
 
-Four operators: `+`, `-`, `*`, `/`. Standard precedence: `*` and `/` bind tighter than `+` and `-`. Use parentheses to override.
+Four operators: `+`, `-`, `*`, `/`. Standard precedence: `*` and `/` bind tighter than `+` and `-`. Use parentheses to override. Arithmetic involving null produces null (e.g., `null + 1.day` is null). Derived values computed from optional fields are implicitly optional.
 
 ### Boolean logic
 
@@ -724,6 +743,8 @@ interviewers.count >= 2 or interviewers.any(i => i.can_solo)
 invitation.status = pending and not invitation.is_expired
 not (a or b)  -- equivalent to: not a and not b
 ```
+
+`and` and `or` short-circuit left to right. If the left operand of `or` is true, the right operand is not evaluated; if the left operand of `and` is false, the right operand is not evaluated. This permits patterns like `not exists x or not x.is_valid`, where the right side is only reached when `x` exists.
 
 ### Conditional expressions
 
@@ -1083,7 +1104,7 @@ When an actor's identity depends on a scope that varies per surface, the `identi
 
 ```
 actor WorkspaceAdmin {
-    identified_by: User with WorkspaceMembership{user: this, workspace: context}.can_admin
+    identified_by: User with WorkspaceMembership{user: this, workspace: context}.can_admin = true
 }
 ```
 

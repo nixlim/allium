@@ -159,7 +159,7 @@ def cleanup_expired_tokens():
 **Extraction process:**
 
 1. **Identify entities from models:**
-   - `User` - has email, password_hash, status, failed_attempts, locked_until
+   - `User` - has email, password_hash, status, failed_login_attempts, locked_until
    - `PasswordResetToken` - has user, token, created_at, expires_at, used
 
 2. **Identify states from status fields and booleans:**
@@ -201,7 +201,7 @@ entity User {
     email: String
     password_hash: String
     status: active | locked | deactivated
-    failed_attempts: Integer
+    failed_login_attempts: Integer
     locked_until: Timestamp?
 
     reset_tokens: PasswordResetToken with user = this
@@ -254,7 +254,7 @@ rule CompletePasswordReset {
     ensures: token.status = used
     ensures: user.password_hash = hash(new_password)
     ensures: user.status = active
-    ensures: user.failed_attempts = 0
+    ensures: user.failed_login_attempts = 0
     ensures: user.locked_until = null
     ensures: user.active_sessions.each(s => s.status = revoked)
     ensures: Email.created(to: user.email, template: password_changed)
@@ -531,7 +531,7 @@ export async function changePlan(req: Request, res: Response) {
 1. **Identify entities from types/models:**
    - `Plan` - configuration entity with limits
    - `Workspace` - has owner, plan
-   - `WorkspaceMember` - join entity (user + workspace)
+   - `WorkspaceMembership` - join entity (user + workspace)
    - `Project`, `File` - resources that count against limits
    - `UsageEvent` - audit/tracking
 
@@ -575,7 +575,7 @@ entity Workspace {
     owner: User
     plan: Plan
 
-    members: WorkspaceMember with workspace = this
+    members: WorkspaceMembership with workspace = this
     all_projects: Project with workspace = this
 
     -- Projections
@@ -602,7 +602,7 @@ entity Workspace {
     can_use_feature(f): f in plan.features
 }
 
-entity WorkspaceMember {
+entity WorkspaceMembership {
     workspace: Workspace
     user: User
 }
@@ -610,7 +610,7 @@ entity WorkspaceMember {
 rule CreateProject {
     when: CreateProject(user, workspace, name)
 
-    let membership = WorkspaceMember{workspace, user}
+    let membership = WorkspaceMembership{workspace, user}
 
     requires: exists membership
     requires: workspace.can_add_project
@@ -629,7 +629,7 @@ rule CreateProject {
 rule CreateProjectLimitReached {
     when: CreateProject(user, workspace, name)
 
-    let membership = WorkspaceMember{workspace, user}
+    let membership = WorkspaceMembership{workspace, user}
 
     requires: exists membership
     requires: not workspace.can_add_project
@@ -937,7 +937,7 @@ entity Workspace {
 rule DeleteDocument {
     when: DeleteDocument(actor, document)
 
-    let membership = WorkspaceMember{workspace: document.workspace, user: actor}
+    let membership = WorkspaceMembership{workspace: document.workspace, user: actor}
 
     requires: document.status = active
     requires: actor = document.created_by or membership.can_admin
@@ -950,7 +950,7 @@ rule DeleteDocument {
 rule RestoreDocument {
     when: RestoreDocument(actor, document)
 
-    let membership = WorkspaceMember{workspace: document.workspace, user: actor}
+    let membership = WorkspaceMembership{workspace: document.workspace, user: actor}
 
     requires: document.can_restore
     requires: actor = document.deleted_by or membership.can_admin
@@ -963,7 +963,7 @@ rule RestoreDocument {
 rule PermanentlyDelete {
     when: PermanentlyDelete(actor, document)
 
-    let membership = WorkspaceMember{workspace: document.workspace, user: actor}
+    let membership = WorkspaceMembership{workspace: document.workspace, user: actor}
 
     requires: document.status = deleted
     requires: membership.can_admin
@@ -974,7 +974,7 @@ rule PermanentlyDelete {
 rule EmptyTrash {
     when: EmptyTrash(actor, workspace)
 
-    let membership = WorkspaceMember{workspace: workspace, user: actor}
+    let membership = WorkspaceMembership{workspace: workspace, user: actor}
 
     requires: membership.can_admin
 
