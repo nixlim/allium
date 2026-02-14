@@ -1321,7 +1321,7 @@ A valid Allium specification must satisfy:
 30. All surfaces referenced in `related`/`navigates_to` must be defined
 31. Bindings in `facing` and `context` clauses must be used consistently throughout the surface
 32. `when` conditions must reference valid fields reachable from the party or context bindings
-33. `for` iterations must iterate over collection-typed fields or bindings (valid in `exposes`, `provides`, `ensures`, rule-level `for` clauses and over collections from surface `let` bindings)
+33. `for` iterations must iterate over collection-typed fields or bindings and are valid in any block scope (including `exposes`, `provides`, `ensures`, rule-level `for` clauses and surface `let` bindings)
 34. _(removed)_
 
 The checker should warn (but not error) on:
