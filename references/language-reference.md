@@ -1199,7 +1199,7 @@ Variable names (`party`, `item`) are user-chosen, not reserved keywords. All cla
 | `guarantee` | Constraints that must hold across the boundary |
 | `guidance` | Non-normative implementation advice |
 | `related` | Associated surfaces reachable from this one; the parenthesised expression evaluates to the entity instance that the target surface's `context` clause binds to, and its type must match the target surface's context type |
-| `timeout` | Surface-scoped temporal triggers |
+| `timeout` | References to temporal rules that apply within this surface's context (the rule name must correspond to a defined rule with a temporal trigger) |
 
 ### Examples
 
@@ -1245,7 +1245,7 @@ surface InterviewerDashboard {
 }
 ```
 
-**Timeout example** — binding a temporal trigger to the surface's context:
+**Timeout example** — a `timeout` clause references an existing temporal rule by name and binds it to the surface's context. The rule name must correspond to a rule with a temporal trigger defined elsewhere in the spec. The `when` condition restates the temporal expression for readability; the checker verifies it matches the referenced rule's trigger.
 
 ```
 surface InvitationView {
@@ -1264,6 +1264,8 @@ surface InvitationView {
         InvitationExpires when invitation.expires_at <= now
 }
 ```
+
+The `timeout` above references the `InvitationExpires` rule, which must be defined as a temporal rule elsewhere in the spec. The surface documents that this temporal behaviour is relevant to the boundary contract.
 
 ---
 
@@ -1318,6 +1320,7 @@ A valid Allium specification must satisfy:
 32. Bindings in `facing` and `context` clauses must be used consistently throughout the surface
 33. `when` conditions must reference valid fields reachable from the party or context bindings
 34. `for` iterations must iterate over collection-typed fields or bindings and are valid in block scopes that produce per-item content (`exposes`, `provides`, `related`)
+35. Rule names referenced in `timeout` clauses must correspond to a defined rule with a temporal trigger
 
 The checker should warn (but not error) on:
 - External entities without known governing specification
