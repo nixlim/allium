@@ -121,7 +121,7 @@ rule InvitationExpires {
 
 - **External stimulus**: `when: CandidateSelectsSlot(invitation, slot)` — action from outside the system
 - **State transition**: `when: interview: Interview.status transitions_to scheduled` — entity changed state (transition only, not creation)
-- **State reached**: `when: interview: Interview.status reaches scheduled` — entity has this value, whether by creation or transition
+- **State becomes**: `when: interview: Interview.status becomes scheduled` — entity has this value, whether by creation or transition
 - **Temporal**: `when: invitation: Invitation.expires_at <= now` — time-based condition (always add a `requires` guard against re-firing)
 - **Derived condition**: `when: interview: Interview.all_feedback_in` — derived value becomes true
 - **Entity creation**: `when: batch: DigestBatch.created` — fires when a new entity is created

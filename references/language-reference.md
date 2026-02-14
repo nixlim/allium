@@ -442,12 +442,12 @@ when: confirmation: SlotConfirmation.status transitions_to confirmed
 
 The variable before the colon binds the entity that triggered the transition. `transitions_to` fires when a field transitions to the specified value from a different value, not on initial entity creation (use `.created` for that). It is valid for enum fields, boolean fields and entity reference fields.
 
-**State reached** — entity has a value, whether by creation or transition:
+**State becomes** — entity has a value, whether by creation or transition:
 ```
-when: interview: Interview.status reaches scheduled
+when: interview: Interview.status becomes scheduled
 ```
 
-`reaches` fires both when an entity is created with the specified value and when a field transitions to that value from a different value. Like `transitions_to`, it is valid for enum fields, boolean fields and entity reference fields. It is equivalent to writing a `transitions_to` rule and a `.created` rule with a `requires` guard, combined into a single trigger. Use `reaches` when the rule should apply regardless of how the entity arrived at the state. Use `transitions_to` when the rule should only apply to transitions (e.g., sending a "rescheduled" notification that doesn't apply on initial creation).
+`becomes` fires both when an entity is created with the specified value and when a field transitions to that value from a different value. Like `transitions_to`, it is valid for enum fields, boolean fields and entity reference fields. It is equivalent to writing a `transitions_to` rule and a `.created` rule with a `requires` guard, combined into a single trigger. Use `becomes` when the rule should apply regardless of how the entity arrived at the state. Use `transitions_to` when the rule should only apply to transitions (e.g., sending a "rescheduled" notification that doesn't apply on initial creation).
 
 **Temporal** — time-based condition:
 ```
@@ -1285,7 +1285,7 @@ A valid Allium specification must satisfy:
 2. All entity fields have defined types
 3. All relationships reference valid entities (singular names) and include a backreference to `this` in their `with` predicate. A `with` clause on an unbound type name (relationship declaration) must reference `this`; a `with` clause on a bound collection (projection, iteration, surface context, surface `let`) must not
 4. All rules have at least one trigger and at least one ensures clause
-5. All triggers are valid (external stimulus, state transition, state reached, entity creation, temporal, derived or chained)
+5. All triggers are valid (external stimulus, state transition, state becomes, entity creation, temporal, derived or chained)
 6. All rules sharing a trigger name must use the same parameter count and positional types. Parameter binding names may differ between rules. Optional parameters (typed `T?`) may be omitted at call sites; omitted optional parameters bind to `null`
 
 **State machine validity:**
@@ -1347,7 +1347,7 @@ The checker should warn (but not error) on:
 - Rules where all ensures clauses are conditional and at least one execution path produces no effects
 - Temporal triggers on optional fields (trigger will not fire when the field is null)
 - Surfaces that use a raw entity type in `facing` when actor declarations exist for that entity type (may indicate a missing access restriction)
-- `transitions_to` triggers on values that entities can be created with (the rule will not fire on creation; consider `reaches` if the rule should also fire on creation)
+- `transitions_to` triggers on values that entities can be created with (the rule will not fire on creation; consider `becomes` if the rule should also fire on creation)
 
 ---
 
@@ -1435,9 +1435,9 @@ rule NotifyOnScheduled {
     ensures: Email.created(to: interview.candidate.email, template: interview_scheduled)
 }
 
--- Good: use reaches when the rule should fire regardless of how the state was reached
+-- Good: use becomes when the rule should fire regardless of how the state was reached
 rule NotifyOnScheduled {
-    when: interview: Interview.status reaches scheduled
+    when: interview: Interview.status becomes scheduled
     ensures: Email.created(to: interview.candidate.email, template: interview_scheduled)
 }
 
