@@ -1204,6 +1204,8 @@ Variable names (`party`, `item`) are user-chosen, not reserved keywords. All cla
 | `navigates_to` | Links to separate views |
 | `timeout` | Surface-scoped temporal triggers |
 
+Each entry in surface `requires` is a bare name representing data the external party must supply, optionally followed by `when condition` to make it conditional (e.g., `email`, `password`, `new_password when token.is_valid`). This is distinct from rule `requires`, which uses boolean expressions as preconditions.
+
 ### Examples
 
 ```

@@ -141,12 +141,14 @@ rule ProcessDigests {
 
 ### Ensures patterns
 
-Ensures clauses have four forms:
+Ensures clauses have four outcome forms:
 
 - **State changes**: `entity.field = value`
 - **Entity creation**: `Entity.created(...)` — the single canonical creation verb
 - **Trigger emission**: `TriggerName(params)` — emits an event for other rules to chain from
 - **Entity removal**: `not exists entity` — asserts the entity no longer exists
+
+These forms compose with `for` iteration (`for x in collection: ...`), `if`/`else` conditionals and `let` bindings. `.each()` is a bulk update shorthand equivalent to `for`.
 
 Entity creation uses `.created()` exclusively. Domain meaning lives in entity names and rule names, not in creation verbs.
 
