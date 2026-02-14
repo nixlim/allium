@@ -1710,10 +1710,6 @@ actor WorkspaceOwner {
     identified_by: User with this = context.owner
 }
 
-actor APIConsumer {
-    identified_by: Workspace with api_key != null
-}
-
 ------------------------------------------------------------
 -- Surfaces
 ------------------------------------------------------------
@@ -1744,7 +1740,7 @@ surface UsageDashboard {
 }
 
 surface APIAccess {
-    facing consumer: APIConsumer
+    facing consumer: Workspace
 
     exposes:
         consumer.usage.api_requests_remaining
