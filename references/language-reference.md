@@ -342,7 +342,7 @@ active_requests: feedback_requests with status = pending and requested_at > cuto
 confirmed_interviewers: confirmations with status = confirmed -> interviewer
 ```
 
-The `-> field` syntax extracts a field from each matching entity.
+The `-> field` syntax extracts a field from each matching entity. When the extracted field is optional (`T?`), null values are excluded from the result: the projection produces `Set<T>`, not `Set<T?>`.
 
 ### Derived values
 
@@ -1133,31 +1133,31 @@ actor AuthenticatedUser {
 
 The `identified_by` expression specifies the entity type and condition that identifies the actor. It takes the form `EntityType with condition`, where the condition uses the entity's own fields, derived values and relationships. When an actor type is used in a `facing` clause, the binding variable has the entity type from the actor's `identified_by` expression. For example, `facing viewer: Interviewer` where `Interviewer` has `identified_by: User with role = interviewer` binds `viewer` as type `User`.
 
-When an actor's identity depends on a scope that varies per surface, declare the expected scope type with a `scope` clause and reference it in `identified_by`:
+When an actor's identity depends on a context that varies per surface, declare the expected context type with a `within` clause and reference it in `identified_by`:
 
 ```
 actor WorkspaceAdmin {
-    scope: Workspace
-    identified_by: User with WorkspaceMembership{user: this, workspace: scope}.can_admin = true
+    within: Workspace
+    identified_by: User with WorkspaceMembership{user: this, workspace: within}.can_admin = true
 }
 ```
 
-The `scope` clause declares the entity type this actor requires from the surface's `context` binding. This makes the dependency explicit: the checker can verify that any surface using this actor provides a compatible context.
+The `within` clause declares the entity type this actor requires from the surface's `context` binding. This makes the dependency explicit: the checker can verify that any surface using this actor provides a compatible context.
 
 Two keywords are available inside `identified_by`:
 
 - `this` — the entity instance being tested (here, the User). Same semantics as `this` in entity declarations.
-- `scope` — the entity bound by the `context` clause of the surface that uses this actor, constrained to the type declared in the actor's `scope` clause.
+- `within` — the entity bound by the `context` clause of the surface that uses this actor, constrained to the type declared in the actor's `within` clause.
 
 ```
 surface WorkspaceManagement {
     facing admin: WorkspaceAdmin
-    context workspace: Workspace    -- matches WorkspaceAdmin's scope: Workspace
+    context workspace: Workspace    -- matches WorkspaceAdmin's within: Workspace
     ...
 }
 ```
 
-An actor declaration with a `scope` clause can only be used in surfaces that declare a `context` clause. The surface's context type must match the actor's declared scope type.
+An actor declaration with a `within` clause can only be used in surfaces that declare a `context` clause. The surface's context type must match the actor's declared `within` type.
 
 The `facing` clause accepts either an actor type or an entity type directly. Use actor declarations when the boundary has specific identity requirements (e.g., `WorkspaceAdmin` requires admin membership). Use entity types directly when any instance of that entity can interact (e.g., `facing visitor: User` for a public-facing surface). For integration surfaces where the external party is code rather than a person, declare an actor type with a minimal `identified_by` expression rather than leaving the type undeclared.
 
@@ -1492,7 +1492,7 @@ ensures: deadline = now + config.confirmation_deadline
 | **Open Question** | An unresolved design decision |
 | **Entity Collection** | Pluralised type name referring to all instances of that entity (e.g., `Users` for all `User` instances) |
 | **Exists** | Keyword for checking entity existence (`exists x`) or asserting removal (`not exists x`) |
-| **`scope`** | Clause in actor declarations that names the required context type; also a keyword in `identified_by` expressions that resolves to the surface's context entity |
+| **`within`** | Clause in actor declarations that names the required context type; also a keyword in `identified_by` expressions that resolves to the surface's context entity |
 | **`this`** | The instance of the enclosing type; valid in entity declarations and actor `identified_by` expressions |
 | **Enum** | A named set of values, reusable across fields and entities |
 | **Discard Binding** | `_` used where a binding is syntactically required but the value is not needed |

@@ -550,18 +550,18 @@ rule ViewDocument {
 ------------------------------------------------------------
 
 actor WorkspaceAdmin {
-    scope: Workspace
-    identified_by: User with WorkspaceMembership{user: this, workspace: scope}.can_admin = true
+    within: Workspace
+    identified_by: User with WorkspaceMembership{user: this, workspace: within}.can_admin = true
 }
 
 actor WorkspaceEditor {
-    scope: Workspace
-    identified_by: User with WorkspaceMembership{user: this, workspace: scope}.can_write = true
+    within: Workspace
+    identified_by: User with WorkspaceMembership{user: this, workspace: within}.can_write = true
 }
 
 actor WorkspaceViewer {
-    scope: Workspace
-    identified_by: User with WorkspaceMembership{user: this, workspace: scope}.can_read = true
+    within: Workspace
+    identified_by: User with WorkspaceMembership{user: this, workspace: within}.can_read = true
 }
 
 ------------------------------------------------------------
@@ -1710,8 +1710,8 @@ rule DowngradeBlocked {
 ------------------------------------------------------------
 
 actor WorkspaceOwner {
-    scope: Workspace
-    identified_by: User with this = scope.owner
+    within: Workspace
+    identified_by: User with this = within.owner
 }
 
 ------------------------------------------------------------
