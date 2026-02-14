@@ -400,7 +400,9 @@ rule CandidateAcceptsInvitation {
 
     ensures: invitation.status = accepted
     ensures: slot.status = booked
-    ensures: invitation.other_slots.each(s => s.status = available)
+    ensures:
+        for s in invitation.slots:
+            if s != slot: s.status = available
     ensures: Interview.created(
         candidacy: invitation.candidacy,
         slot: slot,

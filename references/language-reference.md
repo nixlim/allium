@@ -1310,7 +1310,7 @@ A valid Allium specification must satisfy:
 26. References to `config.field` in rules must correspond to a declared parameter in the local config block or a qualified external config (`alias/config.field`)
 
 **Surface validity:**
-27. Actor types in `facing` clauses should have corresponding `actor` declarations when the external party is an entity type
+27. Types in `facing` clauses must be either a declared `actor` type or a valid entity type (internal, external or imported)
 28. All fields referenced in `exposes` must be reachable from bindings declared in the surface (`facing`, `context`, `let`), via relationships, or be declared types from imported specifications
 29. All triggers referenced in `provides` must be defined as external stimulus triggers in rules
 30. All surfaces referenced in `related`/`navigates_to` must be defined
