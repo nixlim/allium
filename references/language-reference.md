@@ -298,7 +298,7 @@ enum DayOfWeek { monday | tuesday | wednesday | thursday | friday | saturday | s
 
 Named enumerations define a reusable set of values. Declare them in the Enumerations section of the file. Reference them as field types: `recommendation: Recommendation`. Inline enums (`status: pending | active`) are equivalent but anonymous; use named enums when the same set of values appears in multiple fields or entities.
 
-Inline enum values are compared structurally: the literal `pending` is the same value regardless of which inline enum it appears in. Two fields with inline enums can be compared if they share at least one value; the comparison is valid for shared values and always false for values that exist in one enum but not the other. Named enums are distinct types: a field typed `Recommendation` cannot be compared with a field typed `DayOfWeek`, even if they happen to share a literal.
+Inline enum values are compared structurally within the same entity: the literal `pending` is the same value regardless of which inline enum it appears in. Two fields on the same entity with inline enums can be compared if they share at least one value; the comparison is valid for shared values and always false for values that exist in one enum but not the other. Comparing inline enum fields across different entities is a validation error; use a named enum to share values explicitly. Named enums are distinct types: a field typed `Recommendation` cannot be compared with a field typed `DayOfWeek`, even if they happen to share a literal.
 
 **Entity references:**
 ```
@@ -1289,34 +1289,35 @@ A valid Allium specification must satisfy:
 11. All variables are bound before use
 12. Type consistency in comparisons and arithmetic
 13. All lambdas are explicit (use `i => i.field` not `field`)
+14. Inline enum fields on different entities cannot be compared directly; use a named enum to share values across entities
 
 **Sum type validity:**
-14. Sum type discriminators use the pipe syntax with capitalised variant names (`A | B | C`)
-15. All names in a discriminator field must be declared as `variant X : BaseEntity`
-16. All variants that extend a base entity must be listed in that entity's discriminator field
-17. Variant-specific fields are only accessed within type guards (`requires:` or `if` branches)
-18. Base entities with sum type discriminators cannot be instantiated directly
-19. Discriminator field names are user-defined (e.g., `kind`, `node_type`), no reserved name
-20. The `variant` keyword is required for variant declarations
+15. Sum type discriminators use the pipe syntax with capitalised variant names (`A | B | C`)
+16. All names in a discriminator field must be declared as `variant X : BaseEntity`
+17. All variants that extend a base entity must be listed in that entity's discriminator field
+18. Variant-specific fields are only accessed within type guards (`requires:` or `if` branches)
+19. Base entities with sum type discriminators cannot be instantiated directly
+20. Discriminator field names are user-defined (e.g., `kind`, `node_type`), no reserved name
+21. The `variant` keyword is required for variant declarations
 
 **Given validity:**
-21. `given` bindings must reference entity types declared in the module or imported via `use`
-22. Each binding name must be unique within the `given` block
-23. Unqualified instance references in rules must resolve to a `given` binding, a `let` binding, a trigger parameter or a default entity instance
+22. `given` bindings must reference entity types declared in the module or imported via `use`
+23. Each binding name must be unique within the `given` block
+24. Unqualified instance references in rules must resolve to a `given` binding, a `let` binding, a trigger parameter or a default entity instance
 
 **Config validity:**
-24. Config parameters must have explicit types and default values
-25. Config parameter names must be unique within the config block
-26. References to `config.field` in rules must correspond to a declared parameter in the local config block or a qualified external config (`alias/config.field`)
+25. Config parameters must have explicit types and default values
+26. Config parameter names must be unique within the config block
+27. References to `config.field` in rules must correspond to a declared parameter in the local config block or a qualified external config (`alias/config.field`)
 
 **Surface validity:**
-27. Types in `facing` clauses must be either a declared `actor` type or a valid entity type (internal, external or imported)
-28. All fields referenced in `exposes` must be reachable from bindings declared in the surface (`facing`, `context`, `let`), via relationships, or be declared types from imported specifications
-29. All triggers referenced in `provides` must be defined as external stimulus triggers in rules
-30. All surfaces referenced in `related` must be defined, and the type of the parenthesised expression must match the target surface's `context` type
-31. Bindings in `facing` and `context` clauses must be used consistently throughout the surface
-32. `when` conditions must reference valid fields reachable from the party or context bindings
-33. `for` iterations must iterate over collection-typed fields or bindings and are valid in block scopes that produce per-item content (`exposes`, `provides`, `related`)
+28. Types in `facing` clauses must be either a declared `actor` type or a valid entity type (internal, external or imported)
+29. All fields referenced in `exposes` must be reachable from bindings declared in the surface (`facing`, `context`, `let`), via relationships, or be declared types from imported specifications
+30. All triggers referenced in `provides` must be defined as external stimulus triggers in rules
+31. All surfaces referenced in `related` must be defined, and the type of the parenthesised expression must match the target surface's `context` type
+32. Bindings in `facing` and `context` clauses must be used consistently throughout the surface
+33. `when` conditions must reference valid fields reachable from the party or context bindings
+34. `for` iterations must iterate over collection-typed fields or bindings and are valid in block scopes that produce per-item content (`exposes`, `provides`, `related`)
 
 The checker should warn (but not error) on:
 - External entities without known governing specification
@@ -1335,7 +1336,6 @@ The checker should warn (but not error) on:
 - Actor `identified_by` expressions that are trivially always-true or always-false
 - Rules where all ensures clauses are conditional and at least one execution path produces no effects
 - Temporal triggers on optional fields (trigger will not fire when the field is null)
-- Comparing fields with different inline enum types across entities (may indicate unintended structural comparison; use a named enum to share values explicitly)
 
 ---
 
