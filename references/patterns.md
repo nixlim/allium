@@ -1056,7 +1056,7 @@ entity User {
     next_digest_at: Timestamp?
 
     -- Relationships
-    notification_settings: NotificationSetting with user = this
+    notification_setting: NotificationSetting with user = this
     notifications: Notification with user = this
 
     -- Projections
@@ -1148,7 +1148,7 @@ entity DigestBatch {
 rule CreateMentionNotification {
     when: UserMentioned(user, comment, mentioned_by)
 
-    let settings = user.notification_settings
+    let settings = user.notification_setting
 
     requires: user != mentioned_by    -- don't notify self
 
@@ -1165,7 +1165,7 @@ rule CreateMentionNotification {
 rule CreateReplyNotification {
     when: CommentReplied(original_author, reply, original_comment)
 
-    let settings = original_author.notification_settings
+    let settings = original_author.notification_setting
 
     requires: original_author != reply.author    -- don't notify self
 
@@ -1183,7 +1183,7 @@ rule CreateReplyNotification {
 rule CreateShareNotification {
     when: ResourceShared(user, resource, shared_by, permission)
 
-    let settings = user.notification_settings
+    let settings = user.notification_setting
 
     requires: user != shared_by    -- don't notify self
 
@@ -1201,7 +1201,7 @@ rule CreateShareNotification {
 rule CreateAssignmentNotification {
     when: TaskAssigned(user, task, assigned_by)
 
-    let settings = user.notification_settings
+    let settings = user.notification_setting
 
     requires: user != assigned_by    -- don't notify self
 
@@ -1236,7 +1236,7 @@ rule CreateSystemNotification {
 rule SendImmediateEmail {
     when: notification: Notification.created
 
-    let settings = notification.user.notification_settings
+    let settings = notification.user.notification_setting
     let preference =
         if notification.kind = MentionNotification: settings.email_on_mention
         else if notification.kind = ReplyNotification: settings.email_on_comment
@@ -1289,7 +1289,7 @@ rule ArchiveNotification {
 rule CreateDailyDigest {
     when: user: User.next_digest_at <= now
 
-    requires: user.notification_settings.digest_enabled
+    requires: user.notification_setting.digest_enabled
 
     let pending = user.recent_pending_notifications
 
@@ -1330,7 +1330,7 @@ rule SendDigest {
 rule UpdateNotificationPreferences {
     when: UpdatePreferences(user, preferences)
 
-    let settings = user.notification_settings
+    let settings = user.notification_setting
 
     ensures: settings.email_on_mention = preferences.mention
     ensures: settings.email_on_comment = preferences.comment

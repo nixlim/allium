@@ -693,7 +693,7 @@ When you find two terms for the same concept (across specs, within a spec, or be
 ```
 -- BAD: Acknowledges duplication without resolving it
 -- Order vs Purchase
--- checkout.alm uses "Purchase" - these are equivalent concepts.
+-- checkout.allium uses "Purchase" - these are equivalent concepts.
 ```
 
 This is not a resolution. When different parts of a codebase are built against different specs, both terms end up in the implementation: duplicate models, redundant join tables, foreign keys pointing both ways.

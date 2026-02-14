@@ -133,9 +133,10 @@ A `for` clause applies the rule body once per element in a collection:
 ```
 rule CreateDailyDigest {
     when: schedule: DigestSchedule.next_run_at <= now
-    for user in Users with notification_settings.digest_enabled = true:
-        let settings = user.notification_settings
+    for user in Users with notification_setting.digest_enabled = true:
+        let settings = user.notification_setting
         ensures: DigestBatch.created(user: user, ...)
+}
 ```
 
 ### Ensures patterns

@@ -296,7 +296,7 @@ enum Recommendation { strong_yes | yes | no | strong_no }
 enum DayOfWeek { monday | tuesday | wednesday | thursday | friday | saturday | sunday }
 ```
 
-Named enumerations define a reusable set of values. Declare them alongside entities in the Entities section of the file. Reference them as field types: `recommendation: Recommendation`. Inline enums (`status: pending | active`) are equivalent but anonymous; use named enums when the same set of values appears in multiple fields or entities.
+Named enumerations define a reusable set of values. Declare them in the Enumerations section of the file. Reference them as field types: `recommendation: Recommendation`. Inline enums (`status: pending | active`) are equivalent but anonymous; use named enums when the same set of values appears in multiple fields or entities.
 
 **Entity references:**
 ```
@@ -405,8 +405,8 @@ A `for` clause applies the rule body once per element in a collection. The bindi
 ```
 rule CreateDailyDigest {
     when: schedule: DigestSchedule.next_run_at <= now
-    for user in Users with notification_settings.digest_enabled = true:
-        let settings = user.notification_settings
+    for user in Users with notification_setting.digest_enabled = true:
+        let settings = user.notification_setting
         ensures: DigestBatch.created(user: user, ...)
 }
 ```
@@ -1307,7 +1307,7 @@ A valid Allium specification must satisfy:
 
 **Surface validity:**
 27. Actor types in `facing` clauses should have corresponding `actor` declarations when the external party is an entity type
-28. All fields referenced in `exposes` must exist on the context entity, be reachable via relationships, or be declared types from imported specifications
+28. All fields referenced in `exposes` must be reachable from bindings declared in the surface (`facing`, `context`, `let`), via relationships, or be declared types from imported specifications
 29. All triggers referenced in `provides` must be defined as external stimulus triggers in rules
 30. All surfaces referenced in `related`/`navigates_to` must be defined
 31. Bindings in `facing` and `context` clauses must be used consistently throughout the surface
