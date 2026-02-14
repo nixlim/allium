@@ -298,6 +298,8 @@ enum DayOfWeek { monday | tuesday | wednesday | thursday | friday | saturday | s
 
 Named enumerations define a reusable set of values. Declare them in the Enumerations section of the file. Reference them as field types: `recommendation: Recommendation`. Inline enums (`status: pending | active`) are equivalent but anonymous; use named enums when the same set of values appears in multiple fields or entities.
 
+Inline enum values are compared structurally: the literal `pending` is the same value regardless of which inline enum it appears in. Two fields with inline enums can be compared if they share at least one value; the comparison is valid for shared values and always false for values that exist in one enum but not the other. Named enums are distinct types: a field typed `Recommendation` cannot be compared with a field typed `DayOfWeek`, even if they happen to share a literal.
+
 **Entity references:**
 ```
 candidate: Candidate
@@ -445,7 +447,7 @@ The variable before the colon binds the entity that triggered the transition. `t
 when: interview: Interview.status reaches scheduled
 ```
 
-`reaches` fires both when an entity is created with the specified value and when a field transitions to that value from a different value. It is equivalent to writing a `transitions_to` rule and a `.created` rule with a `requires` guard, combined into a single trigger. Use `reaches` when the rule should apply regardless of how the entity arrived at the state. Use `transitions_to` when the rule should only apply to transitions (e.g., sending a "rescheduled" notification that doesn't apply on initial creation).
+`reaches` fires both when an entity is created with the specified value and when a field transitions to that value from a different value. Like `transitions_to`, it is valid for enum fields, boolean fields and entity reference fields. It is equivalent to writing a `transitions_to` rule and a `.created` rule with a `requires` guard, combined into a single trigger. Use `reaches` when the rule should apply regardless of how the entity arrived at the state. Use `transitions_to` when the rule should only apply to transitions (e.g., sending a "rescheduled" notification that doesn't apply on initial creation).
 
 **Temporal** — time-based condition:
 ```
@@ -1322,6 +1324,7 @@ A valid Allium specification must satisfy:
 31. Bindings in `facing` and `context` clauses must be used consistently throughout the surface
 32. `when` conditions must reference valid fields reachable from the party or context bindings
 33. `for` iterations must iterate over collection-typed fields or bindings and are valid in block scopes that produce per-item content (`exposes`, `provides`, `related`)
+34. Every name in `expects` must appear as a parameter name in at least one `provides` entry in the same surface
 
 The checker should warn (but not error) on:
 - External entities without known governing specification
@@ -1340,6 +1343,7 @@ The checker should warn (but not error) on:
 - Actor `identified_by` expressions that are trivially always-true or always-false
 - Rules where all ensures clauses are conditional and at least one execution path produces no effects
 - Temporal triggers on optional fields (trigger will not fire when the field is null)
+- `expects` names that appear in multiple `provides` entries where the corresponding trigger parameters have different types
 
 ---
 
