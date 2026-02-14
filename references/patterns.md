@@ -1746,18 +1746,16 @@ surface UsageDashboard {
 surface APIAccess {
     facing consumer: APIConsumer
 
-    context workspace: Workspace
-
     exposes:
-        workspace.usage.api_requests_remaining
-        workspace.plan.max_api_requests_per_day
+        consumer.usage.api_requests_remaining
+        consumer.plan.max_api_requests_per_day
 
     requires:
         api_key
 
     provides:
-        ApiRequestReceived(workspace, endpoint)
-            when workspace.usage.api_requests_remaining > 0
+        ApiRequestReceived(consumer, endpoint)
+            when consumer.usage.api_requests_remaining > 0
 
     invariant: RateLimitEnforcement
         -- Requests beyond the daily limit receive HTTP 429 with

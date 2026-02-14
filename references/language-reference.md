@@ -867,7 +867,7 @@ Black box functions are pure (no side effects) and deterministic for the same in
 
 ### The `with` keyword
 
-`with` filters a collection or type by a predicate. It appears in relationships, projections, surface context, actor identification and iteration.
+`with` filters a collection or type by a predicate. It appears in relationships, projections, surface context, actor identification, iteration and surface `let` bindings.
 
 ```
 -- Relationships
@@ -884,6 +884,9 @@ User with role = admin
 
 -- Iteration
 for user in Users with notification_setting.digest_enabled = true:
+
+-- Surface let binding (filtering an entity collection)
+let comments = Comments with parent = parent and status = active
 ```
 
 `with` predicates use explicit comparisons. For boolean fields, write `with notification_setting.digest_enabled = true` rather than `with notification_setting.digest_enabled`. This contrasts with `requires`, which accepts bare boolean expressions: `requires: user.notification_setting.digest_enabled`.
@@ -1316,7 +1319,7 @@ A valid Allium specification must satisfy:
 30. All surfaces referenced in `related`/`navigates_to` must be defined
 31. Bindings in `facing` and `context` clauses must be used consistently throughout the surface
 32. `when` conditions must reference valid fields reachable from the party or context bindings
-33. `for` iterations must iterate over collection-typed fields (valid in `exposes`, `provides`, `ensures` and rule-level `for` clauses)
+33. `for` iterations must iterate over collection-typed fields or bindings (valid in `exposes`, `provides`, `ensures`, rule-level `for` clauses and over collections from surface `let` bindings)
 34. _(removed)_
 
 The checker should warn (but not error) on:
