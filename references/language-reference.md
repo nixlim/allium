@@ -298,7 +298,7 @@ enum DayOfWeek { monday | tuesday | wednesday | thursday | friday | saturday | s
 
 Named enumerations define a reusable set of values. Declare them in the Enumerations section of the file. Reference them as field types: `recommendation: Recommendation`. Inline enums (`status: pending | active`) are equivalent but anonymous; use named enums when the same set of values appears in multiple fields or entities.
 
-Inline enum values are compared structurally within the same entity: the literal `pending` is the same value regardless of which inline enum it appears in. Comparing two different inline enum fields on the same entity is a validation warning, because non-shared values silently evaluate to false rather than producing a type error; use a named enum to make the shared value set explicit. Comparing inline enum fields across different entities is a validation error; use a named enum to share values explicitly. Named enums are distinct types: a field typed `Recommendation` cannot be compared with a field typed `DayOfWeek`, even if they happen to share a literal.
+Inline enum values are compared structurally within the same entity: the literal `pending` is the same value regardless of which inline enum it appears in. Comparing two different inline enum fields on the same entity is a validation error, because non-shared values silently evaluate to false rather than producing a type error; use a named enum to make the shared value set explicit. Comparing inline enum fields across different entities is also a validation error; use a named enum to share values explicitly. Named enums are distinct types: a field typed `Recommendation` cannot be compared with a field typed `DayOfWeek`, even if they happen to share a literal.
 
 **Entity references:**
 ```
@@ -1299,7 +1299,7 @@ A valid Allium specification must satisfy:
 12. Type consistency in comparisons and arithmetic
 13. All lambdas are explicit (use `i => i.field` not `field`)
 14. Inline enum fields on different entities cannot be compared directly; use a named enum to share values across entities
-15. Comparing two different inline enum fields on the same entity is a validation warning; use a named enum to make the shared value set explicit
+15. Comparing two different inline enum fields on the same entity is a validation error; use a named enum to make the shared value set explicit
 
 **Sum type validity:**
 16. Sum type discriminators use the pipe syntax with capitalised variant names (`A | B | C`)
