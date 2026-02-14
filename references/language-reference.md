@@ -1343,6 +1343,7 @@ The checker should warn (but not error) on:
 - Parameterised derived values that reference fields outside the entity (scoping violation)
 - Actor `identified_by` expressions that are trivially always-true or always-false
 - Rules where all ensures clauses are conditional and at least one execution path produces no effects
+- Temporal triggers on optional fields (trigger will not fire when the field is null)
 
 ---
 
