@@ -226,9 +226,11 @@ rule RequestPasswordReset {
     let user = User{email}
 
     requires: exists user
-    requires: user.status in [active, locked]
+    requires: user.status in {active, locked}
 
-    ensures: user.pending_reset_tokens.each(t => t.status = expired)
+    ensures:
+        for t in user.pending_reset_tokens:
+            t.status = expired
     ensures:
         let token = PasswordResetToken.created(
             user: user,
@@ -256,7 +258,9 @@ rule CompletePasswordReset {
     ensures: user.status = active
     ensures: user.failed_login_attempts = 0
     ensures: user.locked_until = null
-    ensures: user.active_sessions.each(s => s.status = revoked)
+    ensures:
+        for s in user.active_sessions:
+            s.status = revoked
     ensures: Email.created(to: user.email, template: password_changed)
 }
 

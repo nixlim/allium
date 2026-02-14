@@ -111,14 +111,16 @@ rule InvitationExpires {
     requires: invitation.status = pending
     let remaining = invitation.proposed_slots with status != cancelled
     ensures: invitation.status = expired
-    ensures: remaining.each(s => s.status = cancelled)
+    ensures:
+        for s in remaining:
+            s.status = cancelled
 }
 ```
 
 ### Trigger types
 
 - **External stimulus**: `when: CandidateSelectsSlot(invitation, slot)` — action from outside the system
-- **State transition**: `when: interview: Interview.status becomes scheduled` — entity changed state (transition only, not creation)
+- **State transition**: `when: interview: Interview.status transitions_to scheduled` — entity changed state (transition only, not creation)
 - **State reached**: `when: interview: Interview.status reaches scheduled` — entity has this value, whether by creation or transition
 - **Temporal**: `when: invitation: Invitation.expires_at <= now` — time-based condition (always add a `requires` guard against re-firing)
 - **Derived condition**: `when: interview: Interview.all_feedback_in` — derived value becomes true
@@ -149,7 +151,7 @@ Ensures clauses have four outcome forms:
 - **Trigger emission**: `TriggerName(params)` — emits an event for other rules to chain from
 - **Entity removal**: `not exists entity` — asserts the entity no longer exists
 
-These forms compose with `for` iteration (`for x in collection: ...`), `if`/`else` conditionals and `let` bindings. `.each()` is a bulk update shorthand equivalent to `for`.
+These forms compose with `for` iteration (`for x in collection: ...`), `if`/`else` conditionals and `let` bindings.
 
 Entity creation uses `.created()` exclusively. Domain meaning lives in entity names and rule names, not in creation verbs.
 
@@ -187,7 +189,7 @@ The `exposes` block is the field-level contract: the implementation returns exac
 
 ### Expressions
 
-Navigation: `interview.candidacy.candidate.email`, `reply_to?.author` (optional), `timezone ?? "UTC"` (null coalescing). Collections: `slots.count`, `slot in invitation.slots`, `interviewers.any(i => i.can_solo)`, `collection.each(item => item.status = cancelled)`, `permissions + inherited` (set union), `old - new` (set difference). Comparisons: `status = pending`, `count >= 2`, `status in [confirmed, declined]`, `provider not in providers`. Boolean logic: `a and b`, `a or b`, `not a`.
+Navigation: `interview.candidacy.candidate.email`, `reply_to?.author` (optional), `timezone ?? "UTC"` (null coalescing). Collections: `slots.count`, `slot in invitation.slots`, `interviewers.any(i => i.can_solo)`, `for item in collection: item.status = cancelled`, `permissions + inherited` (set union), `old - new` (set difference). Comparisons: `status = pending`, `count >= 2`, `status in {confirmed, declined}`, `provider not in providers`. Boolean logic: `a and b`, `a or b`, `not a`.
 
 ### Modular specs
 

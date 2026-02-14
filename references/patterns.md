@@ -193,10 +193,12 @@ rule RequestPasswordReset {
     let user = User{email}
 
     requires: exists user
-    requires: user.status in [active, locked]
+    requires: user.status in {active, locked}
 
     -- Invalidate any existing tokens
-    ensures: user.pending_reset_tokens.each(t => t.status = expired)
+    ensures:
+        for t in user.pending_reset_tokens:
+            t.status = expired
 
     ensures:
         let token = PasswordResetToken.created(
@@ -227,7 +229,9 @@ rule CompletePasswordReset {
     ensures: user.locked_until = null
 
     -- Invalidate all existing sessions
-    ensures: user.active_sessions.each(s => s.status = revoked)
+    ensures:
+        for s in user.active_sessions:
+            s.status = revoked
 
     ensures: Email.created(
         to: user.email,
@@ -316,7 +320,7 @@ surface AccountManagement {
 - Multiple rules for same trigger with different `requires` (login success vs failure)
 - Temporal triggers with guards (`when: token: PasswordResetToken.expires_at <= now` with `requires: status = pending`)
 - Projections for filtered collections (`pending_reset_tokens`)
-- Bulk updates (`user.active_sessions.each(...)`)
+- Bulk updates with `for` iteration
 - Explicit `let` binding for created entities
 - Black box functions (`hash()`, `verify()`)
 - Surfaces with `facing` declaration and `for` iteration in `provides`
@@ -664,10 +668,10 @@ entity ResourceShare {
     created_at: Timestamp
 
     -- Derived
-    can_view: permission in [view, edit, admin]
-    can_edit: permission in [edit, admin]
+    can_view: permission in {view, edit, admin}
+    can_edit: permission in {edit, admin}
     can_admin: permission = admin
-    can_invite: permission in [edit, admin]    -- editors and admins can invite
+    can_invite: permission in {edit, admin}    -- editors and admins can invite
 }
 
 entity ResourceInvitation {
@@ -694,7 +698,7 @@ rule InviteToResource {
     let existing_invitation = ResourceInvitation{resource: resource, email: email}
 
     requires: inviter = resource.owner or inviter_share.can_invite
-    requires: permission in [view, edit]    -- can't invite as admin unless owner
+    requires: permission in {view, edit}    -- can't invite as admin unless owner
               or (permission = admin and inviter = resource.owner)
     requires: not exists ResourceShare{resource: resource, user: User{email: email}}
     requires: not exists existing_invitation or not existing_invitation.is_valid
@@ -1021,11 +1025,11 @@ rule RestoreAll {
 
     requires: membership.can_admin
 
-    ensures: workspace.restorable_documents.each(d =>
-        d.status = active,
-        d.deleted_at = null,
-        d.deleted_by = null
-    )
+    ensures:
+        for d in workspace.restorable_documents:
+            d.status = active
+            d.deleted_at = null
+            d.deleted_by = null
 }
 ```
 
@@ -1036,7 +1040,7 @@ rule RestoreAll {
 - Derived values using config (`retention_expires_at: deleted_at + config.retention_period`)
 - Temporal trigger for automatic cleanup (`when: document: Document.retention_expires_at <= now`)
 - `not exists` for permanent removal, as distinct from soft delete
-- Bulk operations with `.each()`
+- Bulk operations with `for` iteration
 
 ---
 
@@ -1274,7 +1278,9 @@ rule MarkAsRead {
 rule MarkAllAsRead {
     when: MarkAllNotificationsRead(user)
 
-    ensures: user.unread_notifications.each(n => n.status = read)
+    ensures:
+        for n in user.unread_notifications:
+            n.status = read
 }
 
 rule ArchiveNotification {
@@ -1304,7 +1310,9 @@ rule CreateDailyDigest {
         created_at: now,
         status: pending
     )
-    ensures: pending.each(n => n.email_status = digested)
+    ensures:
+        for n in pending:
+            n.email_status = digested
     ensures: user.next_digest_at = next_digest_time(user)    -- black box; uses digest_day_of_week
 }
 
@@ -2205,7 +2213,7 @@ rule BlockSuspendedUserLogin {
 
 -- When OAuth session expires, we might want to notify
 rule NotifySessionExpiring {
-    when: session: oauth/Session.status becomes expiring
+    when: session: oauth/Session.status transitions_to expiring
 
     let user = session.user
 
@@ -2343,7 +2351,7 @@ rule ActivateOnPaymentSuccess {
     let sub = org.subscription
 
     requires: exists org
-    requires: sub.status in [trialing, past_due]
+    requires: sub.status in {trialing, past_due}
 
     ensures: sub.status = active
     ensures: sub.current_period_ends_at = invoice.period_end
@@ -2432,7 +2440,7 @@ rule HandleSubscriptionCancelled {
 rule StartSubscription {
     when: StartSubscription(org, plan)
 
-    requires: org.subscription = null or org.subscription.status in [cancelled, expired]
+    requires: org.subscription = null or org.subscription.status in {cancelled, expired}
     requires: org.stripe_customer != null
     requires: org.has_payment_method
 
@@ -2463,7 +2471,7 @@ rule CancelSubscription {
 
     let sub = org.subscription
 
-    requires: sub.status in [active, trialing]
+    requires: sub.status in {active, trialing}
 
     ensures: stripe/CancelSubscription(
         subscription: sub.stripe_subscription,
@@ -2483,7 +2491,7 @@ rule CancelSubscription {
 - Configuration blocks for external specs (`oauth/config { ... }`)
 - Responding to external triggers (`when: oauth/AuthenticationSucceeded(...)`)
 - Trigger emissions for cross-pattern notification (`UserInformed(...)`)
-- Responding to external state transitions (`when: session: oauth/Session.status becomes expiring`)
+- Responding to external state transitions (`when: session: oauth/Session.status transitions_to expiring`)
 - Using external entities (`oauth/Session`, `stripe/Customer`)
 - Linking application entities to external entities (`stripe_customer: stripe/Customer?`)
 - Triggering external actions (`ensures: stripe/CreateSubscription(...)`)

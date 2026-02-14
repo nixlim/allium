@@ -143,7 +143,9 @@ rule SendInvitation {
 
     requires: slots.all(s => s.status = confirmed)
 
-    ensures: slots.each(s => s.status = proposed)
+    ensures:
+        for s in slots:
+            s.status = proposed
     ensures: Invitation.created(
         candidacy: candidacy,
         slots: slots,
@@ -188,7 +190,7 @@ For every detail in the code, ask:
 | `requests.post('https://slack.com/api/...')` | `Notification.created(channel: slack)` |
 | `candidate.oauth_token = google.exchange(code)` | `Candidate authenticated` |
 | `redis.setex(f'session:{id}', 86400, data)` | `Session.created(expires: 24.hours)` |
-| `for slot in slots: slot.status = 'cancelled'` | `slots.each(s => s.status = cancelled)` |
+| `for slot in slots: slot.status = 'cancelled'` | `for s in slots: s.status = cancelled` |
 
 ## The concrete detail problem
 
@@ -465,7 +467,9 @@ rule InvitationExpires {
     requires: invitation.status = pending
 
     ensures: invitation.status = expired
-    ensures: invitation.slots.each(s => s.status = available)
+    ensures:
+        for s in invitation.slots:
+            s.status = available
     ensures: CandidateInformed(candidate: invitation.candidate, about: invitation_expired)
 }
 

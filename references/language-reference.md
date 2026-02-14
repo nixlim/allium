@@ -434,18 +434,18 @@ when: InterviewerReportsNoInterview(interviewer, interview, reason, details?)
 
 **State transition** — entity changed state:
 ```
-when: interview: Interview.status becomes scheduled
-when: confirmation: SlotConfirmation.status becomes confirmed
+when: interview: Interview.status transitions_to scheduled
+when: confirmation: SlotConfirmation.status transitions_to confirmed
 ```
 
-The variable before the colon binds the entity that triggered the transition. `becomes` fires when a field transitions to the specified value from a different value, not on initial entity creation (use `.created` for that). It is valid for enum fields, boolean fields and entity reference fields.
+The variable before the colon binds the entity that triggered the transition. `transitions_to` fires when a field transitions to the specified value from a different value, not on initial entity creation (use `.created` for that). It is valid for enum fields, boolean fields and entity reference fields.
 
 **State reached** — entity has a value, whether by creation or transition:
 ```
 when: interview: Interview.status reaches scheduled
 ```
 
-`reaches` fires both when an entity is created with the specified value and when a field transitions to that value from a different value. It is equivalent to writing a `becomes` rule and a `.created` rule with a `requires` guard, combined into a single trigger. Use `reaches` when the rule should apply regardless of how the entity arrived at the state. Use `becomes` when the rule should only apply to transitions (e.g., sending a "rescheduled" notification that doesn't apply on initial creation).
+`reaches` fires both when an entity is created with the specified value and when a field transitions to that value from a different value. It is equivalent to writing a `transitions_to` rule and a `.created` rule with a `requires` guard, combined into a single trigger. Use `reaches` when the rule should apply regardless of how the entity arrived at the state. Use `transitions_to` when the rule should only apply to transitions (e.g., sending a "rescheduled" notification that doesn't apply on initial creation).
 
 **Temporal** — time-based condition:
 ```
@@ -617,7 +617,9 @@ See [Existence](#existence) in the expression language for the full syntax inclu
 
 **Bulk updates:**
 ```
-ensures: invitation.proposed_slots.each(s => s.status = cancelled)
+ensures:
+    for s in invitation.proposed_slots:
+        s.status = cancelled
 ```
 
 **Conditional outcomes:**
@@ -703,14 +705,10 @@ confirmations.all(c => c.status = confirmed)
 
 -- Filtering (in projections and expressions)
 slots with status = confirmed
-requests with status in [submitted, escalated]
+requests with status in {submitted, escalated}
 
 -- Iteration (introduces a scope block)
 for slot in slots: ...
-
--- Bulk update shorthand (ensures-only, equivalent to for)
-collection.each(item => item.status = cancelled)
-restorable.each(d => d.status = active, d.deleted_at = null)
 
 -- Set mutation (ensures-only, modifies a relationship)
 interviewers.add(new_interviewer)
@@ -725,8 +723,6 @@ attempts.first
 attempts.last
 ```
 
-`.each()` is a bulk update shorthand for ensures clauses. It is equivalent to `for item in collection: expr` and supports multiple comma-separated expressions. It is not a general-purpose iterator.
-
 `.add()` and `.remove()` are ensures-only mutations on a relationship. Set `+` and `-` are expression-level operations that produce new sets without mutating anything.
 
 ### Comparisons
@@ -737,11 +733,11 @@ status != proposed
 count >= 2
 expires_at <= now
 time_until < 24.hours
-status in [confirmed, declined, expired]
+status in {confirmed, declined, expired}
 provider not in user.linked_providers
 ```
 
-`[value1, value2, ...]` is an inline value set used with `in` and `not in` for membership tests. It is not a general-purpose list literal.
+`{value1, value2, ...}` is a set literal used with `in` and `not in` for membership tests. This is the same set literal syntax used in field declarations and expressions.
 
 ### Arithmetic
 
@@ -1064,7 +1060,7 @@ rule AuditLogin {
 }
 
 rule NotifyOnFeedbackSubmitted {
-    when: feedback/Request.status becomes submitted
+    when: feedback/Request.status transitions_to submitted
     ensures:
         for admin in Users with role = admin:
             Notification.created(to: admin, template: feedback_received)
@@ -1423,11 +1419,11 @@ status: pending | active | completed | cancelled
 is_archived: Boolean
 ```
 
-**`becomes` doesn't fire on creation:**
+**`transitions_to` doesn't fire on creation:**
 ```
 -- Bad: won't fire when Interview is created with status = scheduled
 rule NotifyOnScheduled {
-    when: interview: Interview.status becomes scheduled
+    when: interview: Interview.status transitions_to scheduled
     ensures: Email.created(to: interview.candidate.email, template: interview_scheduled)
 }
 
@@ -1439,7 +1435,7 @@ rule NotifyOnScheduled {
 
 -- Also good: handle creation and transition separately when the response differs
 rule NotifyOnRescheduled {
-    when: interview: Interview.status becomes scheduled
+    when: interview: Interview.status transitions_to scheduled
     ensures: Email.created(to: interview.candidate.email, template: interview_rescheduled)
 }
 

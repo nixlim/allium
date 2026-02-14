@@ -74,9 +74,11 @@ rule RequestPasswordReset {
     let user = User{email}
 
     requires: exists user
-    requires: user.status in [active, locked]
+    requires: user.status in {active, locked}
 
-    ensures: user.pending_reset_tokens.each(t => t.status = expired)
+    ensures:
+        for t in user.pending_reset_tokens:
+            t.status = expired
     ensures:
         let token = PasswordResetToken.created(
             user: user,
@@ -142,7 +144,7 @@ deferred EscalationPolicy.at_level
 
 rule IncidentEscalates {
     when: incident: Incident.declared_at + incident.sla_target <= now
-    requires: incident.status in [open, investigating]
+    requires: incident.status in {open, investigating}
 
     ensures:
         incident.escalation_level = incident.escalation_level + 1
@@ -173,7 +175,7 @@ A customer's account was suspended for a terms of service violation. They've app
 
 > ***> A customer says they can't reset their password. Their account was suspended last month but they've appealed and we want to let them back in. Can you enable password reset for suspended users?***
 >
-> ✻ Your Allium requires `user.status in [active, locked]` for password resets. This user's status is `suspended`, so the reset is blocked by design. Reactivating through password reset would bypass your `AccountReinstated` rule, which requires admin approval and logs an audit trail.
+> ✻ Your Allium requires `user.status in {active, locked}` for password resets. This user's status is `suspended`, so the reset is blocked by design. Reactivating through password reset would bypass your `AccountReinstated` rule, which requires admin approval and logs an audit trail.
 >
 > ✻ Should we reinstate the account through the existing admin flow first, then let them reset their password? Or create a new `AccountReinstatedViaAppeal` rule that combines both steps with the audit trail intact?
 >
