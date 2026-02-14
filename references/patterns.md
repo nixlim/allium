@@ -2,6 +2,8 @@
 
 This library contains reusable patterns for common SaaS scenarios. Each pattern demonstrates specific Allium language features and can be adapted to your domain.
 
+Patterns elide common cross-cutting entities (`Email`, `Notification`, `AuditLog`, etc.) for brevity. In a real specification, declare these as external entities or define them in a shared module.
+
 | Pattern | Key Features Demonstrated |
 |---------|---------------------------|
 | Password Auth with Reset | Temporal triggers, token lifecycle, defaults, surfaces |
@@ -1429,6 +1431,7 @@ entity Plan {
 
 entity Workspace {
     name: String
+    owner: User
     plan: Plan
     api_key: String?
 
@@ -1641,6 +1644,7 @@ rule DowngradePlan {
     requires: workspace.documents.count <= new_plan.max_documents
               or new_plan.has_unlimited_documents
     requires: workspace.memberships.count <= new_plan.max_team_members
+              or new_plan.has_unlimited_members
     requires: workspace.usage.storage_bytes_used <= new_plan.max_storage_bytes
               or new_plan.has_unlimited_storage
 

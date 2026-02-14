@@ -266,7 +266,7 @@ requires: request.reminded_at = null      -- field is absent/unset
 requires: request.reminded_at != null     -- field has a value
 ```
 
-`null` represents the absence of a value for optional fields. It is not a value itself.
+`null` represents the absence of a value for optional fields. It is not a value itself. Any comparison involving `null` evaluates to false: `null <= now` is false, `null = null` is false, `null != x` is false. This means temporal triggers on optional fields (e.g., `when: user: User.next_digest_at <= now`) do not fire when the field is absent. To check whether a field has a value, use explicit null checks (`field = null`, `field != null`).
 
 **Enumerated types (inline):**
 ```
@@ -304,6 +304,11 @@ replies: Comment with reply_to = this
 ```
 
 The `with X = this` syntax declares a relationship by naming the field on the related entity that points back. `this` refers to the enclosing entity instance. The syntax is the same whether the relationship is one-to-one, one-to-many or self-referential.
+
+The relationship name determines the cardinality:
+
+- **Singular name** (e.g., `invitation`) — at most one related entity. The value is the entity instance, or `null` if none exists. Equivalent to `T?`.
+- **Plural name** (e.g., `slots`) — zero or more related entities. The value is a collection, empty if none exist.
 
 ### Projections
 
@@ -496,7 +501,7 @@ Use `_` where a binding is required syntactically but the value is not needed. M
 ```
 when: _: LogProcessor.last_flush_check + flush_timeout_hours <= now
 when: SomeEvent(_, slot)
-for _ in items: total = total + 1
+for _ in items: Counted(batch)
 ```
 
 ### Postconditions (ensures)
@@ -505,7 +510,7 @@ Postconditions describe what becomes true. They are declarative assertions about
 
 In state change assignments (`entity.field = expression`), the expression on the right references pre-rule field values. This avoids circular definitions: `user.count = user.count + 1` means the resulting count equals the original count plus one. Conditions within ensures blocks (`if` guards, creation parameters) reference the resulting state as defined by the state changes. A `let` binding within an ensures block introduces a name visible to all subsequent statements in that block.
 
-Ensures clauses fall into three patterns:
+Ensures clauses have four forms:
 
 **State changes** — modify an existing entity's fields:
 ```
@@ -634,7 +639,7 @@ let confirmation = SlotConfirmation{slot, interviewer}
 let feedback_request = FeedbackRequest{interview, interviewer}
 ```
 
-Curly braces with field names look up the specific instance where those fields match. Any number of fields can be specified. Each name serves as both the field name on the entity and the local variable whose value is matched.
+Curly braces with field names look up the specific instance where those fields match. Any number of fields can be specified. Each name serves as both the field name on the entity and the local variable whose value is matched. The lookup must match at most one entity; if the fields do not uniquely identify a single instance, the specification is ambiguous and the checker should report an error.
 
 When the local variable name differs from the field name, use the explicit form:
 
@@ -807,11 +812,13 @@ ensures: not exists document
 permissions: { "documents.read", "documents.write" }
 features: { basic_editing, api_access }
 
--- Object literals (in data parameters)
+-- Object literals (anonymous records, used in creation parameters and trigger emissions)
 data: { candidate: candidate, time: time }
 data: { slots: remaining_slots }
 with: { unlocks_at: user.locked_until }
 ```
+
+Object literals are anonymous record types. They carry named fields but have no declared type. Use them for ad-hoc data in entity creation parameters and trigger emission payloads where defining a named type would add ceremony without clarity.
 
 ### Black box functions
 
@@ -1095,7 +1102,7 @@ surface WorkspaceManagement {
 
 An actor declaration that uses `context` can only be used in surfaces that declare a `context` clause. The types must be compatible: if the `identified_by` expression navigates through `context` expecting a Workspace, the surface's context must bind a Workspace.
 
-For integration surfaces where the external party is code rather than a person, the `facing` clause may name a logical role without a formal actor declaration.
+The `facing` clause accepts either an actor type or an entity type directly. Use actor declarations when the boundary has specific identity requirements (e.g., `WorkspaceAdmin` requires admin membership). Use entity types directly when any instance of that entity can interact (e.g., `facing visitor: User` for a public-facing surface). For integration surfaces where the external party is code rather than a person, the `facing` clause may name a logical role without a formal actor declaration.
 
 ### Surface structure
 
@@ -1409,4 +1416,5 @@ ensures: deadline = now + config.confirmation_deadline
 | **Discard Binding** | `_` used where a binding is syntactically required but the value is not needed |
 | **Actor** | An entity type that can interact with surfaces, declared with explicit identity mapping |
 | **`facing`** | Surface clause naming the external party on the other side of the boundary |
+| **Precondition (surface `requires`)** | What the external party must contribute to the surface (data declarations, not boolean expressions). Distinct from rule preconditions. |
 | **Surface** | A boundary contract between two parties specifying what each side exposes, requires and provides |

@@ -77,7 +77,7 @@ rule UserRequestsPasswordReset {
     ensures:
         let token = ResetToken.created(
             user: user,
-            expires_at: now + config.reset_token_lifetime
+            expires_at: now + config.reset_token_expiry
         )
         Email.created(
             to: user.email,
