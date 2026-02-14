@@ -83,7 +83,7 @@ An Allium specification file (`.allium`) contains these sections in order:
 
 ### Formatting
 
-Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `else`, `ensures`, `exposes`, `provides`, `expects`, `related`, `navigates_to`, `timeout` and `guidance` are delimited by consistent indentation relative to the parent clause. Comments use `--`. Commas may be used as field separators for single-line entity and value type declarations; newlines are the standard separator for multi-line declarations.
+Indentation is significant. Blocks opened by a colon (`:`) after `for`, `if`, `else`, `ensures`, `exposes`, `provides`, `expects`, `related`, `navigates_to`, `timeout`, `guarantee` and `guidance` are delimited by consistent indentation relative to the parent clause. Comments use `--`. Commas may be used as field separators for single-line entity and value type declarations; newlines are the standard separator for multi-line declarations.
 
 ### Naming conventions
 
@@ -1171,7 +1171,7 @@ surface SurfaceName {
         Action(party, item, ...) [when condition]
         ...
 
-    invariant: ConstraintName
+    guarantee: ConstraintName
     guidance: -- non-normative advice
 
     related:
@@ -1196,7 +1196,7 @@ Variable names (`party`, `item`) are user-chosen, not reserved keywords. All cla
 | `exposes` | Visible data (supports `for` iteration over collections) |
 | `expects` | What the external party must contribute (surface-wide data the party must supply) |
 | `provides` | Available operations with optional when-guards (parameters are per-action inputs from the party) |
-| `invariant` | Constraints that must hold across the boundary |
+| `guarantee` | Constraints that must hold across the boundary |
 | `guidance` | Non-normative implementation advice |
 | `related` | Inline panels within the same view |
 | `navigates_to` | Links to separate views |
@@ -1319,7 +1319,7 @@ A valid Allium specification must satisfy:
 30. All surfaces referenced in `related`/`navigates_to` must be defined
 31. Bindings in `facing` and `context` clauses must be used consistently throughout the surface
 32. `when` conditions must reference valid fields reachable from the party or context bindings
-33. `for` iterations must iterate over collection-typed fields or bindings and are valid in any indented block scope
+33. `for` iterations must iterate over collection-typed fields or bindings and are valid in block scopes that produce per-item content (`exposes`, `provides`, `ensures`, `related`, `navigates_to`)
 
 The checker should warn (but not error) on:
 - External entities without known governing specification

@@ -267,7 +267,7 @@ surface Authentication {
         UserRegisters(email, password)
         UserRequestsPasswordReset(email)
 
-    invariant: NoSessionRequired
+    guarantee: NoSessionRequired
         -- Accessible without an existing session.
 
     guidance:
@@ -291,7 +291,7 @@ surface PasswordReset {
         UserResetsPassword(token, new_password)
             when token.is_valid
 
-    invariant: NoSessionRequired
+    guarantee: NoSessionRequired
         -- Accessible without an existing session.
 }
 
@@ -582,7 +582,7 @@ surface WorkspaceMemberManagement {
         RemoveMemberFromWorkspace(admin, workspace, target_user)
             when target_user != workspace.owner
 
-    invariant: OwnerProtection
+    guarantee: OwnerProtection
         -- The workspace owner's role cannot be changed or removed.
 }
 
@@ -865,7 +865,7 @@ surface ResourceSharing {
             RevokeShare(sharer, s)
                 when sharer = resource.owner or share.can_admin
 
-    invariant: OwnerCannotBeRevoked
+    guarantee: OwnerCannotBeRevoked
         -- The resource owner's access cannot be revoked or downgraded.
 }
 
@@ -1753,7 +1753,7 @@ surface APIAccess {
         ApiRequestReceived(consumer, endpoint)
             when not consumer.usage.is_over_api_quota
 
-    invariant: RateLimitEnforcement
+    guarantee: RateLimitEnforcement
         -- Requests beyond the daily limit receive HTTP 429 with
         -- reset time.
 }
@@ -1768,7 +1768,7 @@ surface APIAccess {
 - Temporal trigger for daily reset (`when: usage: WorkspaceUsage.next_reset_at <= now`)
 - Plan upgrade/downgrade logic with `let` binding to capture pre-mutation state
 - Feature flags (`can_use_feature(f)`)
-- Interaction surface for usage dashboard and API surface with rate limit invariant
+- Interaction surface for usage dashboard and API surface with rate limit guarantee
 
 ---
 

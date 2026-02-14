@@ -40,7 +40,7 @@ From an Allium specification, generate:
 - Requires tests: verify the surface rejects interaction when required contributions are missing
 - Related surface navigation: verify navigation to related surfaces works
 - Party restriction tests: verify the surface is not accessible to other party types
-- Invariant tests: verify stated invariants hold across the boundary
+- Guarantee tests: verify stated guarantees hold across the boundary
 
 **Cross-rule interaction tests** (per rule with entity-creating ensures):
 - Re-trigger sibling rules on the same parent while the created entity exists. Verify guards prevent duplicate creation or conflicting state.
