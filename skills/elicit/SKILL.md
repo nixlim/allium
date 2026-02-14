@@ -26,6 +26,7 @@ Before diving into details, establish what you are specifying. Not everything ne
 Capture scope at the start of every spec:
 
 ```
+-- allium: 1
 -- interview-scheduling.allium
 
 -- Scope: Interview scheduling for the hiring pipeline
@@ -36,6 +37,8 @@ Capture scope at the start of every spec:
 --   - Reporting dashboards (separate spec)
 -- Dependencies: User entity defined in core.allium
 ```
+
+The version marker (`-- allium: N`) must be the first line of every `.allium` file. Use the version number from the root Allium skill's `version` frontmatter field.
 
 ## Finding the right level of abstraction
 

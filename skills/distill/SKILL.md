@@ -41,6 +41,7 @@ For any code path you encounter, ask: "If we rebuilt this system from scratch, w
 At the top of a distilled spec, document what is included and excluded:
 
 ```
+-- allium: 1
 -- interview-scheduling.allium
 
 -- Scope: Interview scheduling flow only
@@ -51,6 +52,8 @@ At the top of a distilled spec, document what is included and excluded:
 --   - Legacy V1 API (deprecated, not specified)
 --   - Greenhouse sync (use greenhouse library spec)
 ```
+
+The version marker (`-- allium: N`) must be the first line of every `.allium` file. Use the version number from the root Allium skill's `version` frontmatter field.
 
 ## Finding the right level of abstraction
 

@@ -2,9 +2,10 @@
 
 ## File structure
 
-An Allium specification file (`.allium`) contains these sections in order:
+An Allium specification file (`.allium`) begins with a language version marker, followed by these sections in order:
 
 ```
+-- allium: 1
 -- Comments use double-dash
 -- use declarations (optional)
 
