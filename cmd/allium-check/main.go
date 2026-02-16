@@ -33,7 +33,7 @@ func run(args []string) int {
 	fs := flag.NewFlagSet("allium-check", flag.ContinueOnError)
 
 	formatFlag := fs.String("format", "text", "Output format: text or json")
-	quiet := fs.Bool("quiet", false, "Suppress output (exit code only)")
+	quiet := fs.Bool("quiet", false, "Suppress warnings (show errors only)")
 	strict := fs.Bool("strict", false, "Treat warnings as errors")
 	schemaOnly := fs.Bool("schema-only", false, "Run schema validation only, skip semantic passes")
 	rulesFlag := fs.String("rules", "", "Comma-separated rule numbers or range (e.g., 7,8,9 or 7-9)")
@@ -95,8 +95,20 @@ func run(args []string) int {
 			exitCode = max(exitCode, 1)
 		}
 
-		// Output unless quiet
-		if !*quiet {
+		// Output: if --quiet, suppress warnings but still show errors
+		if *quiet {
+			if r.HasErrors() {
+				filtered := report.NewReport(r.File)
+				filtered.SchemaValid = r.SchemaValid
+				for _, e := range r.Errors {
+					filtered.AddFinding(e)
+				}
+				if err := printReport(filtered, *formatFlag); err != nil {
+					fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+					return 2
+				}
+			}
+		} else {
 			if err := printReport(r, *formatFlag); err != nil {
 				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 				return 2

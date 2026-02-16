@@ -24,11 +24,15 @@ func TestCheckReferenceExample(t *testing.T) {
 		t.Error("expected SchemaValid=true for reference example")
 	}
 
-	// The reference example should pass all validations cleanly.
+	// The reference example should pass all validations with no errors.
+	// WARN-16 is expected: temporal trigger on optional field User.locked_until.
 	for _, e := range r.Errors {
 		t.Errorf("unexpected error: [%s] %s at %s", e.Rule, e.Message, e.Location.Path)
 	}
 	for _, w := range r.Warnings {
+		if w.Rule == "WARN-16" {
+			continue // expected: temporal trigger on optional field
+		}
 		t.Errorf("unexpected warning: [%s] %s at %s", w.Rule, w.Message, w.Location.Path)
 	}
 }

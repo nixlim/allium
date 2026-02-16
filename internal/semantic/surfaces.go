@@ -58,9 +58,27 @@ func CheckSurfaces(spec *ast.Spec, st *SymbolTable) []report.Finding {
 			}
 		}
 
+		// RULE-33: Check when-condition reachability in exposes and provides
+		for j, exp := range surface.Exposes {
+			if exp.When != nil && !allExprRootsReachable(exp.When, bindings) {
+				findings = append(findings, report.NewError(
+					"RULE-33",
+					fmt.Sprintf("When condition references unreachable field in surface '%s'", surface.Name),
+					report.Location{File: spec.File, Path: fmt.Sprintf("%s.exposes[%d].when", basePath, j)},
+				))
+			}
+		}
+		for j, p := range surface.Provides {
+			findings = checkProvidesWhenReachable(findings, p, bindings, surface.Name,
+				fmt.Sprintf("%s.provides[%d]", basePath, j), spec.File)
+		}
+
+		// Build binding-to-type map for RULE-34 collection type checking
+		bindingTypes := collectSurfaceBindingTypes(surface)
+
 		// RULE-34: Check provides for_each collection types
 		for j, p := range surface.Provides {
-			findings = checkProvidesIteration(findings, p, st, surface.Name, bindings,
+			findings = checkProvidesIteration(findings, p, st, surface.Name, bindings, bindingTypes,
 				fmt.Sprintf("%s.provides[%d]", basePath, j), spec.File)
 		}
 	}
@@ -175,11 +193,65 @@ func collectExprRoots(expr *ast.Expression, used map[string]bool) {
 	}
 }
 
+// allExprRootsReachable checks that every field_access root in an expression is in bindings.
+func allExprRootsReachable(expr *ast.Expression, bindings map[string]bool) bool {
+	if expr == nil {
+		return true
+	}
+	roots := make(map[string]bool)
+	collectExprRoots(expr, roots)
+	for root := range roots {
+		if !bindings[root] {
+			return false
+		}
+	}
+	return true
+}
+
+// checkProvidesWhenReachable checks RULE-33 for when-conditions in provides items.
+func checkProvidesWhenReachable(findings []report.Finding, p ast.ProvidesItem, bindings map[string]bool, surfaceName string, path string, file string) []report.Finding {
+	if p.When != nil && !allExprRootsReachable(p.When, bindings) {
+		findings = append(findings, report.NewError(
+			"RULE-33",
+			fmt.Sprintf("When condition references unreachable field in surface '%s'", surfaceName),
+			report.Location{File: file, Path: path + ".when"},
+		))
+	}
+	if p.Kind == "for_each" {
+		// For_each introduces a new binding into scope for nested items
+		innerBindings := bindings
+		if p.Binding != "" {
+			innerBindings = make(map[string]bool, len(bindings)+1)
+			for k, v := range bindings {
+				innerBindings[k] = v
+			}
+			innerBindings[p.Binding] = true
+		}
+		for j, item := range p.Items {
+			findings = checkProvidesWhenReachable(findings, item, innerBindings, surfaceName,
+				fmt.Sprintf("%s.items[%d]", path, j), file)
+		}
+	}
+	return findings
+}
+
+// collectSurfaceBindingTypes returns a map from binding name to entity/type name.
+func collectSurfaceBindingTypes(s ast.Surface) map[string]string {
+	types := make(map[string]string)
+	if s.Facing.Binding != "" {
+		types[s.Facing.Binding] = s.Facing.Type
+	}
+	if s.Context != nil && s.Context.Binding != "" {
+		types[s.Context.Binding] = s.Context.Type
+	}
+	return types
+}
+
 // checkProvidesIteration checks RULE-34: for_each items must iterate over collections.
-func checkProvidesIteration(findings []report.Finding, p ast.ProvidesItem, st *SymbolTable, surfaceName string, bindings map[string]bool, path string, file string) []report.Finding {
+func checkProvidesIteration(findings []report.Finding, p ast.ProvidesItem, st *SymbolTable, surfaceName string, bindings map[string]bool, bindingTypes map[string]string, path string, file string) []report.Finding {
 	if p.Kind == "for_each" && p.Collection != nil {
 		// Check if the collection expression resolves to a collection type
-		if !isCollectionExpression(p.Collection, st, bindings) {
+		if !isCollectionExpression(p.Collection, st, bindingTypes) {
 			findings = append(findings, report.NewError(
 				"RULE-34",
 				fmt.Sprintf("Cannot iterate over non-collection type in surface '%s'", surfaceName),
@@ -188,7 +260,7 @@ func checkProvidesIteration(findings []report.Finding, p ast.ProvidesItem, st *S
 		}
 
 		for j, item := range p.Items {
-			findings = checkProvidesIteration(findings, item, st, surfaceName, bindings,
+			findings = checkProvidesIteration(findings, item, st, surfaceName, bindings, bindingTypes,
 				fmt.Sprintf("%s.items[%d]", path, j), file)
 		}
 	}
@@ -197,21 +269,33 @@ func checkProvidesIteration(findings []report.Finding, p ast.ProvidesItem, st *S
 
 // isCollectionExpression checks if an expression likely evaluates to a collection type.
 // This is a best-effort check based on field type lookups.
-func isCollectionExpression(expr *ast.Expression, st *SymbolTable, _ map[string]bool) bool {
+func isCollectionExpression(expr *ast.Expression, st *SymbolTable, bindingTypes map[string]string) bool {
 	if expr == nil {
 		return false
 	}
 
 	// For field_access, try to resolve the field type
 	if expr.Kind == "field_access" {
-		// If the field access is on a known entity, check field type
 		if expr.Object != nil && expr.Object.Kind == "field_access" && expr.Object.Object == nil {
-			// pattern: binding.field — check if field is a relationship or collection type
-			entityBinding := expr.Object.Field
+			// pattern: binding.field — resolve binding to entity, then check field type
+			bindingName := expr.Object.Field
 			fieldName := expr.Field
 
-			// Try to find the entity for this binding
-			if entity := st.LookupEntity(entityBinding); entity != nil {
+			// First try resolving via binding types (binding name → entity type name)
+			if entityName, ok := bindingTypes[bindingName]; ok {
+				if entity := st.LookupEntity(entityName); entity != nil {
+					if isFieldPrimitive(entity.Fields, fieldName) {
+						return false
+					}
+					return isCollectionField(entity.Fields, fieldName) || isRelationshipMany(entity.Relationships, fieldName)
+				}
+			}
+
+			// Fall back to direct entity lookup (binding name == entity name)
+			if entity := st.LookupEntity(bindingName); entity != nil {
+				if isFieldPrimitive(entity.Fields, fieldName) {
+					return false
+				}
 				return isCollectionField(entity.Fields, fieldName) || isRelationshipMany(entity.Relationships, fieldName)
 			}
 		}
@@ -239,6 +323,16 @@ func isRelationshipMany(rels []ast.Relationship, name string) bool {
 	for _, r := range rels {
 		if r.Name == name {
 			return r.Cardinality == "many"
+		}
+	}
+	return false
+}
+
+// isFieldPrimitive returns true if the named field has a primitive type.
+func isFieldPrimitive(fields []ast.Field, name string) bool {
+	for _, f := range fields {
+		if f.Name == name {
+			return f.Type.Kind == "primitive"
 		}
 	}
 	return false

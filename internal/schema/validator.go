@@ -17,8 +17,9 @@ var schemaFS embed.FS
 
 // SchemaError represents a single schema validation error.
 type SchemaError struct {
-	Path    string `json:"path"`
-	Message string `json:"message"`
+	Path       string `json:"path"`
+	Message    string `json:"message"`
+	ParseError bool   `json:"-"` // true when the error is a JSON parse or read failure
 }
 
 func (e SchemaError) String() string {
@@ -86,12 +87,12 @@ func NewSchemaValidator() (*SchemaValidator, error) {
 func (v *SchemaValidator) Validate(docPath string) []SchemaError {
 	data, err := os.ReadFile(docPath)
 	if err != nil {
-		return []SchemaError{{Message: fmt.Sprintf("failed to read file: %v", err)}}
+		return []SchemaError{{Message: fmt.Sprintf("failed to read file: %v", err), ParseError: true}}
 	}
 
 	var doc any
 	if err := json.Unmarshal(data, &doc); err != nil {
-		return []SchemaError{{Message: fmt.Sprintf("failed to parse JSON: %v", err)}}
+		return []SchemaError{{Message: fmt.Sprintf("failed to parse JSON: %v", err), ParseError: true}}
 	}
 
 	return v.ValidateDocument(doc)

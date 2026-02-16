@@ -100,10 +100,11 @@ func TestRunStrict(t *testing.T) {
 		t.Errorf("run(--strict --schema-only) = %d, want 0", code)
 	}
 
-	// Without --schema-only, --strict should still pass since no warnings.
+	// Without --schema-only, --strict now returns 1 because WARN-16 fires
+	// (temporal trigger on optional field User.locked_until in password-auth example).
 	code = run([]string{"--strict", refExample})
-	if code != 0 {
-		t.Errorf("run(--strict, all passes) = %d, want 0", code)
+	if code != 1 {
+		t.Errorf("run(--strict, all passes) = %d, want 1 (WARN-16 fires)", code)
 	}
 }
 

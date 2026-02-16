@@ -392,23 +392,82 @@ func checkWarn16OptionalTemporal(findings []report.Finding, spec *ast.Spec, st *
 			continue
 		}
 		entityName := rule.Trigger.Entity
-		fieldName := rule.Trigger.Field
-		if entityName == "" || fieldName == "" {
+		if entityName == "" {
 			continue
 		}
+
+		// Collect field names from the explicit Field property and
+		// from field_access nodes in the trigger's condition expression.
+		fieldSet := make(map[string]bool)
+		if rule.Trigger.Field != "" {
+			fieldSet[rule.Trigger.Field] = true
+		}
+		if rule.Trigger.Condition != nil && rule.Trigger.Binding != "" {
+			for _, fn := range extractFieldNames(rule.Trigger.Condition, rule.Trigger.Binding) {
+				fieldSet[fn] = true
+			}
+		}
+		if len(fieldSet) == 0 {
+			continue
+		}
+
 		if ent := st.LookupEntity(entityName); ent != nil {
-			for _, f := range ent.Fields {
-				if f.Name == fieldName && f.Type.Kind == "optional" {
-					findings = append(findings, report.NewWarning(
-						"WARN-16",
-						fmt.Sprintf("Temporal trigger on optional field '%s.%s' — won't fire when absent", entityName, fieldName),
-						report.Location{File: spec.File, Path: fmt.Sprintf("$.rules[%d].trigger", i)},
-					))
+			for fieldName := range fieldSet {
+				for _, f := range ent.Fields {
+					if f.Name == fieldName && f.Type.Kind == "optional" {
+						findings = append(findings, report.NewWarning(
+							"WARN-16",
+							fmt.Sprintf("Temporal trigger on optional field '%s.%s' — won't fire when absent", entityName, fieldName),
+							report.Location{File: spec.File, Path: fmt.Sprintf("$.rules[%d].trigger", i)},
+						))
+					}
 				}
 			}
 		}
 	}
 	return findings
+}
+
+// extractFieldNames extracts field names accessed on the given binding variable
+// from an expression tree. For example, in `order.expires_at < now()`,
+// with binding "order", it returns ["expires_at"].
+func extractFieldNames(expr *ast.Expression, binding string) []string {
+	if expr == nil {
+		return nil
+	}
+	var fields []string
+	walkExpression(expr, func(e *ast.Expression) {
+		if e.Kind == "field_access" && e.Object != nil &&
+			e.Object.Kind == "field_access" && e.Object.Object == nil &&
+			e.Object.Field == binding {
+			fields = append(fields, e.Field)
+		}
+	})
+	return fields
+}
+
+// walkExpression calls fn for every node in the expression tree.
+func walkExpression(expr *ast.Expression, fn func(*ast.Expression)) {
+	if expr == nil {
+		return
+	}
+	fn(expr)
+	walkExpression(expr.Object, fn)
+	walkExpression(expr.Left, fn)
+	walkExpression(expr.Right, fn)
+	walkExpression(expr.Operand, fn)
+	walkExpression(expr.Target, fn)
+	walkExpression(expr.Condition, fn)
+	walkExpression(expr.Lambda, fn)
+	walkExpression(expr.Collection, fn)
+	walkExpression(expr.Element, fn)
+	walkExpression(expr.Body, fn)
+	for i := range expr.FuncArguments {
+		walkExpression(&expr.FuncArguments[i], fn)
+	}
+	for i := range expr.Elements {
+		walkExpression(&expr.Elements[i], fn)
+	}
 }
 
 // WARN-17: Surface using raw entity type in facing when actors exist for that entity.

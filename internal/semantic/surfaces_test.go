@@ -182,6 +182,174 @@ func TestCheckSurfaces_RULE32_UsedInRelated(t *testing.T) {
 	}
 }
 
+func TestCheckSurfaces_RULE33_UnreachableWhenInProvides(t *testing.T) {
+	spec := surfaceSpec()
+	// Add a provides action with a when condition referencing an unknown root
+	spec.Surfaces[0].Provides = append(spec.Surfaces[0].Provides, ast.ProvidesItem{
+		Kind:    "action",
+		Trigger: "submit_order",
+		When: &ast.Expression{
+			Kind: "field_access",
+			Object: &ast.Expression{Kind: "field_access", Field: "unknown"},
+			Field: "active",
+		},
+	})
+	st := BuildSymbolTable(spec)
+	findings := CheckSurfaces(spec, st)
+
+	r33 := findingsWithRule(findings, "RULE-33")
+	if len(r33) == 0 {
+		t.Fatal("expected RULE-33 for unreachable when condition in provides")
+	}
+}
+
+func TestCheckSurfaces_RULE33_UnreachableWhenInExposes(t *testing.T) {
+	spec := surfaceSpec()
+	// Add an exposes item with when condition referencing unknown root
+	spec.Surfaces[0].Exposes = append(spec.Surfaces[0].Exposes, ast.ExposesItem{
+		Expression: &ast.Expression{Kind: "field_access", Object: &ast.Expression{Kind: "field_access", Field: "order"}, Field: "status"},
+		When: &ast.Expression{
+			Kind: "field_access",
+			Object: &ast.Expression{Kind: "field_access", Field: "unknown_binding"},
+			Field: "visible",
+		},
+	})
+	st := BuildSymbolTable(spec)
+	findings := CheckSurfaces(spec, st)
+
+	r33 := findingsWithRule(findings, "RULE-33")
+	if len(r33) == 0 {
+		t.Fatal("expected RULE-33 for unreachable when condition in exposes")
+	}
+}
+
+func TestCheckSurfaces_RULE33_ReachableWhen(t *testing.T) {
+	spec := surfaceSpec()
+	// When condition referencing valid bindings should not fire
+	st := BuildSymbolTable(spec)
+	findings := CheckSurfaces(spec, st)
+
+	r33 := findingsWithRule(findings, "RULE-33")
+	if len(r33) > 0 {
+		t.Errorf("reachable when conditions should not trigger RULE-33, got %d", len(r33))
+	}
+}
+
+func TestCheckSurfaces_RULE33_ForEachNestedWhen(t *testing.T) {
+	spec := surfaceSpec()
+	// for_each introduces binding "item", nested action when referencing "item" is OK
+	spec.Surfaces[0].Provides = []ast.ProvidesItem{
+		{
+			Kind:    "for_each",
+			Binding: "item",
+			Collection: &ast.Expression{
+				Kind:   "field_access",
+				Object: &ast.Expression{Kind: "field_access", Field: "order"},
+				Field:  "items",
+			},
+			Items: []ast.ProvidesItem{
+				{
+					Kind:    "action",
+					Trigger: "submit_order",
+					When: &ast.Expression{
+						Kind:   "field_access",
+						Object: &ast.Expression{Kind: "field_access", Field: "item"},
+						Field:  "active",
+					},
+				},
+			},
+		},
+	}
+	st := BuildSymbolTable(spec)
+	findings := CheckSurfaces(spec, st)
+
+	r33 := findingsWithRule(findings, "RULE-33")
+	if len(r33) > 0 {
+		t.Errorf("for_each binding should be reachable in nested items, got %d RULE-33", len(r33))
+	}
+}
+
+func TestCheckSurfaces_RULE34_IterateOverString(t *testing.T) {
+	spec := surfaceSpec()
+	// for_each over order.status which is a String (not a collection)
+	spec.Surfaces[0].Provides = []ast.ProvidesItem{
+		{
+			Kind:    "for_each",
+			Binding: "s",
+			Collection: &ast.Expression{
+				Kind:   "field_access",
+				Object: &ast.Expression{Kind: "field_access", Field: "order"},
+				Field:  "status",
+			},
+			Items: []ast.ProvidesItem{
+				{Kind: "action", Trigger: "submit_order"},
+			},
+		},
+	}
+	st := BuildSymbolTable(spec)
+	findings := CheckSurfaces(spec, st)
+
+	r34 := findingsWithRule(findings, "RULE-34")
+	if len(r34) == 0 {
+		t.Fatal("expected RULE-34 for iterating over String field")
+	}
+}
+
+func TestCheckSurfaces_RULE34_IterateOverList(t *testing.T) {
+	spec := surfaceSpec()
+	// for_each over order.items which is a list (valid)
+	spec.Surfaces[0].Provides = []ast.ProvidesItem{
+		{
+			Kind:    "for_each",
+			Binding: "item",
+			Collection: &ast.Expression{
+				Kind:   "field_access",
+				Object: &ast.Expression{Kind: "field_access", Field: "order"},
+				Field:  "items",
+			},
+			Items: []ast.ProvidesItem{
+				{Kind: "action", Trigger: "submit_order"},
+			},
+		},
+	}
+	st := BuildSymbolTable(spec)
+	findings := CheckSurfaces(spec, st)
+
+	r34 := findingsWithRule(findings, "RULE-34")
+	if len(r34) > 0 {
+		t.Errorf("iterating over list should not trigger RULE-34, got %d", len(r34))
+	}
+}
+
+func TestCheckSurfaces_RULE34_IterateOverManyRelationship(t *testing.T) {
+	spec := surfaceSpec()
+	// Add a many-cardinality relationship
+	spec.Entities[0].Relationships = []ast.Relationship{
+		{Name: "line_items", TargetEntity: "LineItem", ForeignKey: "order_id", Cardinality: "many"},
+	}
+	spec.Surfaces[0].Provides = []ast.ProvidesItem{
+		{
+			Kind:    "for_each",
+			Binding: "li",
+			Collection: &ast.Expression{
+				Kind:   "field_access",
+				Object: &ast.Expression{Kind: "field_access", Field: "order"},
+				Field:  "line_items",
+			},
+			Items: []ast.ProvidesItem{
+				{Kind: "action", Trigger: "submit_order"},
+			},
+		},
+	}
+	st := BuildSymbolTable(spec)
+	findings := CheckSurfaces(spec, st)
+
+	r34 := findingsWithRule(findings, "RULE-34")
+	if len(r34) > 0 {
+		t.Errorf("iterating over many-cardinality relationship should not trigger RULE-34, got %d", len(r34))
+	}
+}
+
 func TestCheckSurfaces_NoSurfaces(t *testing.T) {
 	spec := &ast.Spec{File: "test.allium.json"}
 	st := BuildSymbolTable(spec)

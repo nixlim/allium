@@ -226,15 +226,18 @@ func checkExpressionConfigRefs(findings []report.Finding, st *SymbolTable, expr 
 		return findings
 	}
 
-	// A config reference is a field_access with no object (root) and field name matching config
-	if expr.Kind == "field_access" && expr.Object == nil {
-		// Root field access — could be a config ref, given binding, or trigger param.
-		// We only flag it as RULE-27 if it looks like it could be a config ref
-		// but config checking is complex. We check explicit "config." patterns.
-		// Actually, config params are accessed by name directly in expressions.
-		// We'll check config references in a targeted way — only when the field
-		// name matches a pattern. For now, we leave RULE-27 for expression validation
-		// which has full scope tracking.
+	// A config reference is config.param_name: a field_access where the object is
+	// a root field_access with field "config", and the outer field is the param name.
+	if expr.Kind == "field_access" && expr.Object != nil &&
+		expr.Object.Kind == "field_access" && expr.Object.Object == nil && expr.Object.Field == "config" {
+		paramName := expr.Field
+		if st.LookupConfig(paramName) == nil {
+			findings = append(findings, report.NewError(
+				"RULE-27",
+				fmt.Sprintf("Config parameter '%s' referenced but not declared", paramName),
+				report.Location{File: file, Path: path},
+			))
+		}
 	}
 
 	// Recurse into sub-expressions

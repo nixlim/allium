@@ -2,8 +2,7 @@ package semantic
 
 import (
 	"fmt"
-	"slices"
-	"unicode"
+	"strings"
 
 	"github.com/foundry-zero/allium/internal/ast"
 	"github.com/foundry-zero/allium/internal/report"
@@ -18,12 +17,24 @@ import (
 func CheckSumTypes(spec *ast.Spec, st *SymbolTable) []report.Finding {
 	var findings []report.Finding
 
-	// Build map: base entity name -> discriminator info
+	// Build reverse index: base entity name -> variant names from declarations
+	variantsByBase := make(map[string][]string)
+	for _, v := range spec.Variants {
+		variantsByBase[v.BaseEntity] = append(variantsByBase[v.BaseEntity], v.Name)
+	}
+
+	// Build map: base entity name -> discriminator info.
+	// An entity has a discriminator if variants point to it AND it has an
+	// inline_enum field whose values correspond to variant names.
 	discriminators := make(map[string]*discInfo)
 
 	for i, entity := range spec.Entities {
+		variantNames, hasVariants := variantsByBase[entity.Name]
+		if !hasVariants {
+			continue
+		}
 		for _, f := range entity.Fields {
-			if f.Type.Kind == "inline_enum" && isDiscriminator(f.Type.Values) {
+			if f.Type.Kind == "inline_enum" && isDiscriminatorField(f.Type.Values, variantNames) {
 				discriminators[entity.Name] = &discInfo{
 					entityIdx: i,
 					fieldName: f.Name,
@@ -37,7 +48,7 @@ func CheckSumTypes(spec *ast.Spec, st *SymbolTable) []report.Finding {
 	// RULE-16: Each discriminator variant name must have a variant declaration
 	for entityName, disc := range discriminators {
 		for _, variantName := range disc.variants {
-			v := st.LookupVariant(variantName)
+			v := lookupVariantByEnumValue(st, variantName)
 			if v == nil {
 				findings = append(findings, report.NewError(
 					"RULE-16",
@@ -67,7 +78,7 @@ func CheckSumTypes(spec *ast.Spec, st *SymbolTable) []report.Finding {
 			continue
 		}
 
-		if !slices.Contains(disc.variants, v.Name) {
+		if !containsVariantName(disc.variants, v.Name) {
 			findings = append(findings, report.NewError(
 				"RULE-17",
 				fmt.Sprintf("Variant '%s' not listed in '%s' discriminator", v.Name, v.BaseEntity),
@@ -87,17 +98,52 @@ func CheckSumTypes(spec *ast.Spec, st *SymbolTable) []report.Finding {
 	return findings
 }
 
-// isDiscriminator checks if an inline_enum's values are all PascalCase (variant names).
-func isDiscriminator(values []string) bool {
-	if len(values) == 0 {
+// isDiscriminatorField checks if an inline_enum field serves as a discriminator
+// by testing whether any of its values correspond to known variant names.
+// Handles both exact match (PascalCase values) and snake_case → PascalCase conversion.
+func isDiscriminatorField(enumValues []string, variantNames []string) bool {
+	if len(variantNames) == 0 || len(enumValues) == 0 {
 		return false
 	}
-	for _, v := range values {
-		if len(v) == 0 || !unicode.IsUpper(rune(v[0])) {
-			return false
+	for _, vn := range variantNames {
+		for _, ev := range enumValues {
+			if ev == vn || snakeToPascal(ev) == vn {
+				return true
+			}
 		}
 	}
-	return true
+	return false
+}
+
+// lookupVariantByEnumValue looks up a variant declaration by an enum value.
+// Tries exact match first, then snake_case → PascalCase conversion.
+func lookupVariantByEnumValue(st *SymbolTable, enumValue string) *ast.Variant {
+	if v := st.LookupVariant(enumValue); v != nil {
+		return v
+	}
+	return st.LookupVariant(snakeToPascal(enumValue))
+}
+
+// containsVariantName checks if a variant name appears in a list of enum values,
+// handling both exact match and snake_case → PascalCase comparison.
+func containsVariantName(enumValues []string, variantName string) bool {
+	for _, ev := range enumValues {
+		if ev == variantName || snakeToPascal(ev) == variantName {
+			return true
+		}
+	}
+	return false
+}
+
+// snakeToPascal converts a snake_case string to PascalCase.
+func snakeToPascal(s string) string {
+	parts := strings.Split(s, "_")
+	for i, p := range parts {
+		if len(p) > 0 {
+			parts[i] = strings.ToUpper(p[:1]) + p[1:]
+		}
+	}
+	return strings.Join(parts, "")
 }
 
 // checkCreationVariantUse checks RULE-19: ensures creating an entity with a

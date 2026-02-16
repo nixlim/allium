@@ -407,6 +407,99 @@ func TestCheckReferences_RULE35_EmptyCoordinate(t *testing.T) {
 	}
 }
 
+func TestCheckReferences_RULE27_UndeclaredConfigRef(t *testing.T) {
+	spec := cleanSpec()
+	// Add a rule with an expression that references config.nonexistent_param
+	spec.Rules[0].Requires = []ast.Expression{
+		{
+			Kind: "comparison",
+			Left: &ast.Expression{
+				Kind:   "field_access",
+				Field:  "nonexistent_param",
+				Object: &ast.Expression{Kind: "field_access", Field: "config"},
+			},
+			Right: &ast.Expression{Kind: "literal", Type: "integer"},
+		},
+	}
+	st := BuildSymbolTable(spec)
+	findings := CheckReferences(spec, st)
+
+	f := findingWithRule(findings, "RULE-27")
+	if f == nil {
+		t.Fatal("expected RULE-27 for undeclared config parameter reference")
+	}
+	if f.Severity != report.SeverityError {
+		t.Errorf("severity = %v, want error", f.Severity)
+	}
+}
+
+func TestCheckReferences_RULE27_ValidConfigRef(t *testing.T) {
+	spec := cleanSpec()
+	// Reference the declared config param "max_retries"
+	spec.Rules[0].Requires = []ast.Expression{
+		{
+			Kind: "comparison",
+			Left: &ast.Expression{
+				Kind:   "field_access",
+				Field:  "max_retries",
+				Object: &ast.Expression{Kind: "field_access", Field: "config"},
+			},
+			Right: &ast.Expression{Kind: "literal", Type: "integer"},
+		},
+	}
+	st := BuildSymbolTable(spec)
+	findings := CheckReferences(spec, st)
+
+	r27 := findingsWithRule(findings, "RULE-27")
+	if len(r27) > 0 {
+		t.Errorf("valid config reference should not trigger RULE-27, got %d findings", len(r27))
+	}
+}
+
+func TestCheckReferences_RULE27_InDerivedValue(t *testing.T) {
+	spec := cleanSpec()
+	// Add derived value with undeclared config ref
+	spec.Entities[0].DerivedValues = []ast.DerivedValue{
+		{
+			Name: "computed",
+			Expression: &ast.Expression{
+				Kind:   "field_access",
+				Field:  "missing_config",
+				Object: &ast.Expression{Kind: "field_access", Field: "config"},
+			},
+		},
+	}
+	st := BuildSymbolTable(spec)
+	findings := CheckReferences(spec, st)
+
+	f := findingWithRule(findings, "RULE-27")
+	if f == nil {
+		t.Fatal("expected RULE-27 for config reference in derived value")
+	}
+}
+
+func TestCheckReferences_RULE27_InLetBinding(t *testing.T) {
+	spec := cleanSpec()
+	// Add let binding in rule with undeclared config ref
+	spec.Rules[0].LetBindings = []ast.LetBinding{
+		{
+			Name: "threshold",
+			Expression: &ast.Expression{
+				Kind:   "field_access",
+				Field:  "no_such_param",
+				Object: &ast.Expression{Kind: "field_access", Field: "config"},
+			},
+		},
+	}
+	st := BuildSymbolTable(spec)
+	findings := CheckReferences(spec, st)
+
+	f := findingWithRule(findings, "RULE-27")
+	if f == nil {
+		t.Fatal("expected RULE-27 for config reference in let binding")
+	}
+}
+
 func TestCheckReferences_MultipleErrors(t *testing.T) {
 	spec := cleanSpec()
 	// Break multiple things

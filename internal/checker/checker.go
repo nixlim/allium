@@ -63,7 +63,7 @@ func (c *Checker) Check(path string, opts CheckOptions) *report.Report {
 
 	// Verify the file is accessible before attempting validation.
 	if _, err := os.Stat(path); err != nil {
-		r.AddFinding(report.NewError("INPUT", fmt.Sprintf("cannot access file: %v", err),
+		r.AddFinding(report.NewError("INPUT", fmt.Sprintf("file not found: %s", path),
 			report.Location{File: path}))
 		return r
 	}
@@ -73,7 +73,11 @@ func (c *Checker) Check(path string, opts CheckOptions) *report.Report {
 	r.SchemaValid = len(schemaErrors) == 0
 
 	for _, se := range schemaErrors {
-		r.AddFinding(report.NewError("SCHEMA", se.Message,
+		rule := "SCHEMA"
+		if se.ParseError {
+			rule = "INPUT"
+		}
+		r.AddFinding(report.NewError(rule, se.Message,
 			report.Location{File: path, Path: se.Path}))
 	}
 

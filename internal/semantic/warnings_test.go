@@ -491,6 +491,92 @@ func TestCheckWarnings_WARN16_RequiredTemporal(t *testing.T) {
 	}
 }
 
+func TestCheckWarnings_WARN16_ConditionOptionalField(t *testing.T) {
+	spec := warningSpec()
+	// Add an optional Timestamp field
+	spec.Entities[0].Fields = append(spec.Entities[0].Fields, ast.Field{
+		Name: "expires_at",
+		Type: ast.FieldType{Kind: "optional", Inner: &ast.FieldType{Kind: "primitive", Value: "Timestamp"}},
+	})
+	// Temporal trigger with condition expression referencing the optional field
+	// (no explicit Field property — this is how real temporal triggers work)
+	spec.Rules = append(spec.Rules, ast.Rule{
+		Name: "ExpireOrder",
+		Trigger: ast.Trigger{
+			Kind:    "temporal",
+			Entity:  "Order",
+			Binding: "order",
+			Condition: &ast.Expression{
+				Kind:     "comparison",
+				Operator: "<",
+				Left: &ast.Expression{
+					Kind: "field_access",
+					Object: &ast.Expression{
+						Kind:  "field_access",
+						Field: "order",
+					},
+					Field: "expires_at",
+				},
+				Right: &ast.Expression{
+					Kind:     "function_call",
+					FuncName: "now",
+				},
+			},
+		},
+		Requires: []ast.Expression{
+			{Kind: "literal", Type: "boolean"},
+		},
+		Ensures: []ast.EnsuresClause{{Kind: "state_change"}},
+	})
+	st := BuildSymbolTable(spec)
+	findings := CheckWarnings(spec, st)
+
+	w16 := warnFindings(findings, "WARN-16")
+	if len(w16) == 0 {
+		t.Fatal("expected WARN-16 for temporal trigger condition on optional field")
+	}
+}
+
+func TestCheckWarnings_WARN16_ConditionRequiredField(t *testing.T) {
+	spec := warningSpec()
+	// created_at is already a required Timestamp field on Order
+	spec.Rules = append(spec.Rules, ast.Rule{
+		Name: "ExpireOrder",
+		Trigger: ast.Trigger{
+			Kind:    "temporal",
+			Entity:  "Order",
+			Binding: "order",
+			Condition: &ast.Expression{
+				Kind:     "comparison",
+				Operator: "<",
+				Left: &ast.Expression{
+					Kind: "field_access",
+					Object: &ast.Expression{
+						Kind:  "field_access",
+						Field: "order",
+					},
+					Field: "created_at",
+				},
+				Right: &ast.Expression{
+					Kind:     "function_call",
+					FuncName: "now",
+				},
+			},
+		},
+		Requires: []ast.Expression{
+			{Kind: "literal", Type: "boolean"},
+		},
+		Ensures: []ast.EnsuresClause{{Kind: "state_change"}},
+	})
+	st := BuildSymbolTable(spec)
+	findings := CheckWarnings(spec, st)
+
+	w16 := warnFindings(findings, "WARN-16")
+	if len(w16) > 0 {
+		t.Error("should not fire WARN-16 when field referenced in condition is required")
+	}
+}
+
 // ---- WARN-17 ----
 
 func TestCheckWarnings_WARN17_RawEntityWithActors(t *testing.T) {
