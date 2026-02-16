@@ -1,0 +1,55 @@
+{
+  "version": "1",
+  "file": "duplicate-config.allium",
+  "metadata": {
+    "scope": "broken-example",
+    "description": "Triggers RULE-26: duplicate config parameter names"
+  },
+  "entities": [
+    {
+      "name": "Session",
+      "fields": [
+        {
+          "name": "expires_at",
+          "type": { "kind": "primitive", "value": "Timestamp" }
+        }
+      ],
+      "relationships": [],
+      "projections": [],
+      "derived_values": []
+    }
+  ],
+  "config": [
+    {
+      "name": "session_timeout",
+      "type": { "kind": "primitive", "value": "Duration" },
+      "default_value": { "kind": "literal", "type": "duration", "value": "24h" }
+    },
+    {
+      "name": "session_timeout",
+      "type": { "kind": "primitive", "value": "Integer" },
+      "default_value": { "kind": "literal", "type": "integer", "value": 30 }
+    }
+  ],
+  "rules": [
+    {
+      "name": "CreateSession",
+      "trigger": {
+        "kind": "external_stimulus",
+        "name": "CreateSession",
+        "parameters": [
+          { "name": "user" }
+        ]
+      },
+      "ensures": [
+        {
+          "kind": "entity_creation",
+          "entity": "Session",
+          "fields": {
+            "expires_at": { "kind": "literal", "type": "timestamp", "value": "now" }
+          }
+        }
+      ]
+    }
+  ]
+}

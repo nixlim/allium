@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Allium Deferred Specification Definitions",
+  "$defs": {
+    "Deferred": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "method": {
+          "$ref": "common.json#/$defs/snake_case_name"
+        },
+        "location_hint": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "method"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

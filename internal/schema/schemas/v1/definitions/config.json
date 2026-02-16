@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Allium Config Definitions",
+  "$defs": {
+    "ConfigParam": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/snake_case_name"
+        },
+        "type": {
+          "$ref": "field-types.json#/$defs/FieldType"
+        },
+        "default_value": {
+          "$ref": "expressions.json#/$defs/Expression"
+        }
+      },
+      "required": [
+        "name",
+        "type",
+        "default_value"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

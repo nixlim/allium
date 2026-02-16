@@ -30,6 +30,7 @@ Allium does NOT specify programming language or framework choices, database sche
 | Writing or reading `.allium` files | this skill | You need language syntax and structure |
 | Building a spec through conversation | `elicit` | User describes a feature or behaviour they want to build |
 | Extracting a spec from existing code | `distill` | User has implementation code and wants a spec from it |
+| Validating a spec for errors | `validate` | User wants to check a `.allium` or `.allium.json` file against schema and semantic rules |
 
 ## Quick syntax summary
 

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Allium Default Definitions",
+  "$defs": {
+    "Default": {
+      "type": "object",
+      "properties": {
+        "entity": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "name": {
+          "$ref": "common.json#/$defs/snake_case_name"
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "expressions.json#/$defs/Expression"
+          },
+          "minProperties": 1
+        }
+      },
+      "required": [
+        "entity",
+        "name",
+        "fields"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

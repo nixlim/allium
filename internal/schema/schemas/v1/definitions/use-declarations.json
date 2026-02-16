@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Allium Use Declaration Definitions",
+  "$defs": {
+    "UseDeclaration": {
+      "type": "object",
+      "properties": {
+        "coordinate": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Immutable reference to the external spec (git SHA or content hash)"
+        },
+        "alias": {
+          "$ref": "common.json#/$defs/identifier",
+          "description": "Local alias for the imported spec"
+        }
+      },
+      "required": [
+        "coordinate",
+        "alias"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "version": "1",
+  "file": "circular-derived.allium",
+  "metadata": {
+    "scope": "broken-example",
+    "description": "Triggers RULE-10: circular derivation chain where 'is_ready' depends on 'is_complete' and vice versa"
+  },
+  "entities": [
+    {
+      "name": "Project",
+      "fields": [
+        {
+          "name": "name",
+          "type": { "kind": "primitive", "value": "String" }
+        },
+        {
+          "name": "task_count",
+          "type": { "kind": "primitive", "value": "Integer" }
+        }
+      ],
+      "relationships": [],
+      "projections": [],
+      "derived_values": [
+        {
+          "name": "is_ready",
+          "expression": {
+            "kind": "boolean_logic",
+            "operator": "and",
+            "left": {
+              "kind": "comparison",
+              "operator": ">",
+              "left": { "kind": "field_access", "object": null, "field": "task_count" },
+              "right": { "kind": "literal", "type": "integer", "value": 0 }
+            },
+            "right": {
+              "kind": "field_access",
+              "object": null,
+              "field": "is_complete"
+            }
+          }
+        },
+        {
+          "name": "is_complete",
+          "expression": {
+            "kind": "boolean_logic",
+            "operator": "and",
+            "left": {
+              "kind": "comparison",
+              "operator": ">",
+              "left": { "kind": "field_access", "object": null, "field": "task_count" },
+              "right": { "kind": "literal", "type": "integer", "value": 5 }
+            },
+            "right": {
+              "kind": "field_access",
+              "object": null,
+              "field": "is_ready"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "name": "CreateProject",
+      "trigger": {
+        "kind": "external_stimulus",
+        "name": "CreateProject",
+        "parameters": [
+          { "name": "name" }
+        ]
+      },
+      "ensures": [
+        {
+          "kind": "entity_creation",
+          "entity": "Project",
+          "fields": {
+            "name": { "kind": "field_access", "object": null, "field": "name" },
+            "task_count": { "kind": "literal", "type": "integer", "value": 0 }
+          }
+        }
+      ]
+    }
+  ]
+}

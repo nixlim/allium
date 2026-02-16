@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Allium Field Type Definitions",
+  "$defs": {
+    "FieldType": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "oneOf": [
+        {
+          "$ref": "#/$defs/PrimitiveType"
+        },
+        {
+          "$ref": "#/$defs/EntityRefType"
+        },
+        {
+          "$ref": "#/$defs/InlineEnumType"
+        },
+        {
+          "$ref": "#/$defs/NamedEnumType"
+        },
+        {
+          "$ref": "#/$defs/OptionalType"
+        },
+        {
+          "$ref": "#/$defs/SetType"
+        },
+        {
+          "$ref": "#/$defs/ListType"
+        }
+      ]
+    },
+    "PrimitiveType": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "primitive"
+        },
+        "value": {
+          "type": "string",
+          "enum": [
+            "String",
+            "Integer",
+            "Decimal",
+            "Boolean",
+            "Timestamp",
+            "Duration"
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "EntityRefType": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "entity_ref"
+        },
+        "entity": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        }
+      },
+      "required": [
+        "kind",
+        "entity"
+      ],
+      "additionalProperties": false
+    },
+    "InlineEnumType": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "inline_enum"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "$ref": "common.json#/$defs/snake_case_name"
+          },
+          "minItems": 2,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "kind",
+        "values"
+      ],
+      "additionalProperties": false
+    },
+    "NamedEnumType": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "named_enum"
+        },
+        "name": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        }
+      },
+      "required": [
+        "kind",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "OptionalType": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "optional"
+        },
+        "inner": {
+          "$ref": "#/$defs/FieldType"
+        }
+      },
+      "required": [
+        "kind",
+        "inner"
+      ],
+      "additionalProperties": false
+    },
+    "SetType": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "set"
+        },
+        "element": {
+          "$ref": "#/$defs/FieldType"
+        }
+      },
+      "required": [
+        "kind",
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "ListType": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "list"
+        },
+        "element": {
+          "$ref": "#/$defs/FieldType"
+        }
+      },
+      "required": [
+        "kind",
+        "element"
+      ],
+      "additionalProperties": false
+    },
+    "Field": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/snake_case_name"
+        },
+        "type": {
+          "$ref": "#/$defs/FieldType"
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

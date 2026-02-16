@@ -224,6 +224,14 @@ Questions to ask:
 
 **Outputs:** Complete entity definitions. Open questions documented. Deferred specifications identified. External boundaries confirmed.
 
+**Validation step:** After producing the `.allium` file during refinement, generate a `.allium.json` alongside it and run `allium-check --format json`. Use validation errors as conversation prompts:
+
+- "Entity 'X' has unreachable status value 'archived' — is that intentional or should there be a transition path?"
+- "Rule 'Y' references entity 'Z' which isn't declared — should we add it or is that a typo?"
+- "Derived value 'is_ready' creates a circular dependency — which direction should we break?"
+
+Present each error with its explanation and ask the user to resolve the ambiguity. This surfaces spec issues that might not be obvious from reading the human-readable format.
+
 ## Elicitation principles
 
 ### Ask one question at a time

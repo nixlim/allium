@@ -1,0 +1,85 @@
+{
+  "version": "1",
+  "file": "unreachable-state.allium",
+  "metadata": {
+    "scope": "broken-example",
+    "description": "Triggers RULE-07: status enum value 'archived' is unreachable via BFS from creation values"
+  },
+  "entities": [
+    {
+      "name": "Task",
+      "fields": [
+        {
+          "name": "title",
+          "type": { "kind": "primitive", "value": "String" }
+        },
+        {
+          "name": "status",
+          "type": {
+            "kind": "inline_enum",
+            "values": ["open", "in_progress", "done", "archived"]
+          }
+        }
+      ],
+      "relationships": [],
+      "projections": [],
+      "derived_values": []
+    }
+  ],
+  "rules": [
+    {
+      "name": "CreateTask",
+      "trigger": {
+        "kind": "external_stimulus",
+        "name": "CreateTask",
+        "parameters": [
+          { "name": "title" }
+        ]
+      },
+      "ensures": [
+        {
+          "kind": "entity_creation",
+          "entity": "Task",
+          "fields": {
+            "title": { "kind": "field_access", "object": null, "field": "title" },
+            "status": { "kind": "literal", "type": "enum_value", "value": "open" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "StartTask",
+      "trigger": {
+        "kind": "state_transition",
+        "binding": "task",
+        "entity": "Task",
+        "field": "status",
+        "to_value": "in_progress"
+      },
+      "ensures": [
+        {
+          "kind": "state_change",
+          "target": { "kind": "field_access", "object": { "kind": "field_access", "object": null, "field": "task" }, "field": "status" },
+          "value": { "kind": "literal", "type": "enum_value", "value": "in_progress" }
+        }
+      ]
+    },
+    {
+      "name": "CompleteTask",
+      "trigger": {
+        "kind": "external_stimulus",
+        "name": "CompleteTask",
+        "parameters": [
+          { "name": "task" }
+        ]
+      },
+      "ensures": [
+        {
+          "kind": "state_change",
+          "target": { "kind": "field_access", "object": { "kind": "field_access", "object": null, "field": "task" }, "field": "status" },
+          "value": { "kind": "literal", "type": "enum_value", "value": "done" }
+        }
+      ]
+    }
+  ]
+}

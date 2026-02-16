@@ -1,0 +1,63 @@
+{
+  "version": "1",
+  "file": "unguarded-variant.allium",
+  "metadata": {
+    "scope": "broken-example",
+    "description": "Triggers RULE-17: variant 'PriorityTask' extends 'Task' which has no discriminator field with PascalCase variant names. Note: RULE-18 (unguarded variant field access) requires discriminator support in the schema; this example targets the closest implementable rule."
+  },
+  "entities": [
+    {
+      "name": "Task",
+      "fields": [
+        {
+          "name": "title",
+          "type": { "kind": "primitive", "value": "String" }
+        },
+        {
+          "name": "status",
+          "type": {
+            "kind": "inline_enum",
+            "values": ["open", "closed"]
+          }
+        }
+      ],
+      "relationships": [],
+      "projections": [],
+      "derived_values": []
+    }
+  ],
+  "variants": [
+    {
+      "name": "PriorityTask",
+      "base_entity": "Task",
+      "fields": [
+        {
+          "name": "priority",
+          "type": { "kind": "primitive", "value": "Integer" }
+        }
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "name": "CreateTask",
+      "trigger": {
+        "kind": "external_stimulus",
+        "name": "CreateTask",
+        "parameters": [
+          { "name": "title" }
+        ]
+      },
+      "ensures": [
+        {
+          "kind": "entity_creation",
+          "entity": "Task",
+          "fields": {
+            "title": { "kind": "field_access", "object": null, "field": "title" },
+            "status": { "kind": "literal", "type": "enum_value", "value": "open" }
+          }
+        }
+      ]
+    }
+  ]
+}

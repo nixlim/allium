@@ -1,0 +1,280 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Allium Surface Definitions",
+  "$defs": {
+    "Surface": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "facing": {
+          "$ref": "#/$defs/FacingClause"
+        },
+        "context": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/ContextClause"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "let_bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "rules.json#/$defs/LetBinding"
+          }
+        },
+        "exposes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ExposesItem"
+          }
+        },
+        "provides": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ProvidesItem"
+          }
+        },
+        "guarantees": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Guarantee"
+          }
+        },
+        "guidance": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "related": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RelatedItem"
+          }
+        },
+        "timeout": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TimeoutItem"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "facing"
+      ],
+      "additionalProperties": false
+    },
+    "FacingClause": {
+      "type": "object",
+      "properties": {
+        "binding": {
+          "$ref": "common.json#/$defs/identifier"
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "binding",
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "ContextClause": {
+      "type": "object",
+      "properties": {
+        "binding": {
+          "$ref": "common.json#/$defs/identifier"
+        },
+        "type": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "condition": {
+          "$ref": "expressions.json#/$defs/Expression"
+        }
+      },
+      "required": [
+        "binding",
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "ExposesItem": {
+      "type": "object",
+      "properties": {
+        "expression": {
+          "$ref": "expressions.json#/$defs/Expression"
+        },
+        "when": {
+          "oneOf": [
+            {
+              "$ref": "expressions.json#/$defs/Expression"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "expression"
+      ],
+      "additionalProperties": false
+    },
+    "ProvidesItem": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ActionProvide"
+        },
+        {
+          "$ref": "#/$defs/ForEachProvide"
+        }
+      ]
+    },
+    "ActionProvide": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "action"
+        },
+        "trigger": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ProvideArgument"
+          }
+        },
+        "when": {
+          "oneOf": [
+            {
+              "$ref": "expressions.json#/$defs/Expression"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "trigger",
+        "arguments"
+      ],
+      "additionalProperties": false
+    },
+    "ForEachProvide": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "for_each"
+        },
+        "binding": {
+          "$ref": "common.json#/$defs/identifier"
+        },
+        "collection": {
+          "$ref": "expressions.json#/$defs/Expression"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ProvidesItem"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "kind",
+        "binding",
+        "collection",
+        "items"
+      ],
+      "additionalProperties": false
+    },
+    "ProvideArgument": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/identifier"
+        },
+        "expression": {
+          "$ref": "expressions.json#/$defs/Expression"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "Guarantee": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "RelatedItem": {
+      "type": "object",
+      "properties": {
+        "surface": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "context_expression": {
+          "$ref": "expressions.json#/$defs/Expression"
+        },
+        "when": {
+          "oneOf": [
+            {
+              "$ref": "expressions.json#/$defs/Expression"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "surface",
+        "context_expression"
+      ],
+      "additionalProperties": false
+    },
+    "TimeoutItem": {
+      "type": "object",
+      "properties": {
+        "rule": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "when": {
+          "oneOf": [
+            {
+              "$ref": "expressions.json#/$defs/Expression"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "rule"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,521 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Allium Rule Definitions",
+  "$defs": {
+    "Rule": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "trigger": {
+          "$ref": "#/$defs/Trigger"
+        },
+        "for_clause": {
+          "$ref": "#/$defs/ForClause"
+        },
+        "let_bindings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/LetBinding"
+          }
+        },
+        "requires": {
+          "type": "array",
+          "items": {
+            "$ref": "expressions.json#/$defs/Expression"
+          }
+        },
+        "ensures": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EnsuresClause"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "name",
+        "trigger",
+        "ensures"
+      ],
+      "additionalProperties": false
+    },
+    "Trigger": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "oneOf": [
+        {
+          "$ref": "#/$defs/ExternalStimulusTrigger"
+        },
+        {
+          "$ref": "#/$defs/StateTransitionTrigger"
+        },
+        {
+          "$ref": "#/$defs/StateBecomesTrigger"
+        },
+        {
+          "$ref": "#/$defs/TemporalTrigger"
+        },
+        {
+          "$ref": "#/$defs/DerivedConditionTrigger"
+        },
+        {
+          "$ref": "#/$defs/EntityCreationTrigger"
+        },
+        {
+          "$ref": "#/$defs/ChainedTrigger"
+        }
+      ]
+    },
+    "ExternalStimulusTrigger": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "external_stimulus"
+        },
+        "name": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TriggerParameter"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "parameters"
+      ],
+      "additionalProperties": false
+    },
+    "StateTransitionTrigger": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "state_transition"
+        },
+        "binding": {
+          "$ref": "common.json#/$defs/identifier"
+        },
+        "entity": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "field": {
+          "$ref": "common.json#/$defs/snake_case_name"
+        },
+        "to_value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "binding",
+        "entity",
+        "field",
+        "to_value"
+      ],
+      "additionalProperties": false
+    },
+    "StateBecomesTrigger": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "state_becomes"
+        },
+        "binding": {
+          "$ref": "common.json#/$defs/identifier"
+        },
+        "entity": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "field": {
+          "$ref": "common.json#/$defs/snake_case_name"
+        },
+        "value": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "binding",
+        "entity",
+        "field",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "TemporalTrigger": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "temporal"
+        },
+        "binding": {
+          "$ref": "common.json#/$defs/identifier"
+        },
+        "entity": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "condition": {
+          "$ref": "expressions.json#/$defs/Expression"
+        }
+      },
+      "required": [
+        "kind",
+        "binding",
+        "entity",
+        "condition"
+      ],
+      "additionalProperties": false
+    },
+    "DerivedConditionTrigger": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "derived_condition"
+        },
+        "binding": {
+          "$ref": "common.json#/$defs/identifier"
+        },
+        "entity": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "field": {
+          "$ref": "common.json#/$defs/snake_case_name"
+        }
+      },
+      "required": [
+        "kind",
+        "binding",
+        "entity",
+        "field"
+      ],
+      "additionalProperties": false
+    },
+    "EntityCreationTrigger": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "entity_creation"
+        },
+        "binding": {
+          "$ref": "common.json#/$defs/identifier"
+        },
+        "entity": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        }
+      },
+      "required": [
+        "kind",
+        "binding",
+        "entity"
+      ],
+      "additionalProperties": false
+    },
+    "ChainedTrigger": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "chained"
+        },
+        "name": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TriggerParameter"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "parameters"
+      ],
+      "additionalProperties": false
+    },
+    "TriggerParameter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/identifier"
+        },
+        "optional": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "ForClause": {
+      "type": "object",
+      "properties": {
+        "binding": {
+          "$ref": "common.json#/$defs/identifier"
+        },
+        "collection": {
+          "$ref": "expressions.json#/$defs/Expression"
+        },
+        "condition": {
+          "$ref": "expressions.json#/$defs/Expression"
+        }
+      },
+      "required": [
+        "binding",
+        "collection"
+      ],
+      "additionalProperties": false
+    },
+    "LetBinding": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/identifier"
+        },
+        "expression": {
+          "$ref": "expressions.json#/$defs/Expression"
+        }
+      },
+      "required": [
+        "name",
+        "expression"
+      ],
+      "additionalProperties": false
+    },
+    "EnsuresClause": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "oneOf": [
+        {
+          "$ref": "#/$defs/StateChangeEnsures"
+        },
+        {
+          "$ref": "#/$defs/EntityCreationEnsures"
+        },
+        {
+          "$ref": "#/$defs/TriggerEmissionEnsures"
+        },
+        {
+          "$ref": "#/$defs/EntityRemovalEnsures"
+        },
+        {
+          "$ref": "#/$defs/ConditionalEnsures"
+        },
+        {
+          "$ref": "#/$defs/IterationEnsures"
+        },
+        {
+          "$ref": "#/$defs/LetBindingEnsures"
+        },
+        {
+          "$ref": "#/$defs/SetMutationEnsures"
+        }
+      ]
+    },
+    "StateChangeEnsures": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "state_change"
+        },
+        "target": {
+          "$ref": "expressions.json#/$defs/Expression"
+        },
+        "value": {
+          "$ref": "expressions.json#/$defs/Expression"
+        }
+      },
+      "required": [
+        "kind",
+        "target",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "EntityCreationEnsures": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "entity_creation"
+        },
+        "entity": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "expressions.json#/$defs/Expression"
+          },
+          "minProperties": 1
+        }
+      },
+      "required": [
+        "kind",
+        "entity",
+        "fields"
+      ],
+      "additionalProperties": false
+    },
+    "TriggerEmissionEnsures": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "trigger_emission"
+        },
+        "name": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "arguments": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "expressions.json#/$defs/Expression"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "arguments"
+      ],
+      "additionalProperties": false
+    },
+    "EntityRemovalEnsures": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "entity_removal"
+        },
+        "target": {
+          "$ref": "expressions.json#/$defs/Expression"
+        }
+      },
+      "required": [
+        "kind",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "ConditionalEnsures": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "conditional"
+        },
+        "condition": {
+          "$ref": "expressions.json#/$defs/Expression"
+        },
+        "then": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EnsuresClause"
+          },
+          "minItems": 1
+        },
+        "else": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EnsuresClause"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "condition",
+        "then"
+      ],
+      "additionalProperties": false
+    },
+    "IterationEnsures": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "iteration"
+        },
+        "binding": {
+          "$ref": "common.json#/$defs/identifier"
+        },
+        "collection": {
+          "$ref": "expressions.json#/$defs/Expression"
+        },
+        "body": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EnsuresClause"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "kind",
+        "binding",
+        "collection",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "LetBindingEnsures": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "let_binding"
+        },
+        "name": {
+          "$ref": "common.json#/$defs/identifier"
+        },
+        "value": {},
+        "body": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EnsuresClause"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "value",
+        "body"
+      ],
+      "additionalProperties": false
+    },
+    "SetMutationEnsures": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "set_mutation"
+        },
+        "target": {
+          "$ref": "expressions.json#/$defs/Expression"
+        },
+        "operation": {
+          "type": "string",
+          "enum": [
+            "add",
+            "remove"
+          ]
+        },
+        "value": {
+          "$ref": "expressions.json#/$defs/Expression"
+        }
+      },
+      "required": [
+        "kind",
+        "target",
+        "operation",
+        "value"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

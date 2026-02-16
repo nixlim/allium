@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Allium Enumeration Definitions",
+  "$defs": {
+    "Enumeration": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "$ref": "common.json#/$defs/snake_case_name"
+          },
+          "minItems": 2,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "name",
+        "values"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

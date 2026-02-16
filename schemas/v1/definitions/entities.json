@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Allium Entity Definitions",
+  "$defs": {
+    "Entity": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "field-types.json#/$defs/Field"
+          },
+          "minItems": 1
+        },
+        "relationships": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Relationship"
+          }
+        },
+        "projections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Projection"
+          }
+        },
+        "derived_values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DerivedValue"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "fields"
+      ],
+      "additionalProperties": false
+    },
+    "ExternalEntity": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "field-types.json#/$defs/Field"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "fields"
+      ],
+      "additionalProperties": false
+    },
+    "Relationship": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/snake_case_name"
+        },
+        "target_entity": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "foreign_key": {
+          "$ref": "common.json#/$defs/snake_case_name"
+        },
+        "cardinality": {
+          "type": "string",
+          "enum": [
+            "one",
+            "many"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "target_entity",
+        "foreign_key",
+        "cardinality"
+      ],
+      "additionalProperties": false
+    },
+    "Projection": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/snake_case_name"
+        },
+        "source": {
+          "$ref": "common.json#/$defs/snake_case_name"
+        },
+        "condition": {
+          "$ref": "expressions.json#/$defs/Expression"
+        },
+        "mapping": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "source",
+        "condition"
+      ],
+      "additionalProperties": false
+    },
+    "DerivedValue": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/snake_case_name"
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "common.json#/$defs/identifier"
+          }
+        },
+        "expression": {
+          "$ref": "expressions.json#/$defs/Expression"
+        }
+      },
+      "required": [
+        "name",
+        "expression"
+      ],
+      "additionalProperties": false
+    },
+    "Variant": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "base_entity": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "field-types.json#/$defs/Field"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "base_entity",
+        "fields"
+      ],
+      "additionalProperties": false
+    },
+    "ValueType": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "$ref": "field-types.json#/$defs/Field"
+          },
+          "minItems": 1
+        },
+        "derived_values": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DerivedValue"
+          }
+        }
+      },
+      "required": [
+        "name",
+        "fields"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

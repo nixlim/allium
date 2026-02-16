@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Allium Actor Definitions",
+  "$defs": {
+    "Actor": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "within": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "identified_by": {
+          "$ref": "#/$defs/IdentifiedBy"
+        }
+      },
+      "required": [
+        "name",
+        "identified_by"
+      ],
+      "additionalProperties": false
+    },
+    "IdentifiedBy": {
+      "type": "object",
+      "properties": {
+        "entity": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "condition": {
+          "$ref": "expressions.json#/$defs/Expression"
+        }
+      },
+      "required": [
+        "entity",
+        "condition"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

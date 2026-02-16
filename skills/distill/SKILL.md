@@ -558,6 +558,22 @@ Common findings:
 - "Actually we wanted X but never built it"
 - "These two code paths should be the same but aren't"
 
+### Step 8: Generate JSON and validate
+
+After completing the `.allium` file, generate a `.allium.json` alongside it and run validation:
+
+1. Convert the `.allium` file to `.allium.json` format (JSON AST representation matching the schema at `schemas/v1/allium-spec.json`).
+2. Run `allium-check --format json` on the generated `.allium.json` file.
+3. If validation errors are found, fix them before presenting the final spec to the user. Common fixes:
+   - **RULE-01** (undeclared entity): Add missing entity or fix typo
+   - **RULE-06** (duplicate name): Rename the duplicate
+   - **RULE-10** (circular derivation): Break the dependency cycle
+   - **RULE-11** (identifier not in scope): Add let binding or fix reference
+4. Re-run validation until clean, then present the spec.
+5. If `allium-check` is not available, note this to the user and suggest building it with `go build -o bin/allium-check ./cmd/allium-check`.
+
+The `.allium.json` file should be placed alongside the `.allium` file with the same base name.
+
 ## Recognising library spec candidates
 
 During distillation, stay alert for code that implements **generic integration patterns** rather than application-specific logic. These belong in library specs, not your main specification.

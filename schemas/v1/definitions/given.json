@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Allium Given Definitions",
+  "$defs": {
+    "GivenBinding": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "$ref": "common.json#/$defs/snake_case_name"
+        },
+        "type": {
+          "$ref": "field-types.json#/$defs/FieldType"
+        }
+      },
+      "required": [
+        "name",
+        "type"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

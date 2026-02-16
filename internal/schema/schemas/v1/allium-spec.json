@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "allium-spec.json",
+  "title": "Allium Specification v1",
+  "description": "Root schema for Allium behavioral specification JSON AST files",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "const": "1"
+    },
+    "file": {
+      "type": "string",
+      "pattern": ".*\\.allium$"
+    },
+    "metadata": { "$ref": "definitions/common.json#/$defs/metadata" },
+    "use_declarations": {
+      "type": "array",
+      "items": { "$ref": "definitions/use-declarations.json#/$defs/UseDeclaration" }
+    },
+    "given": {
+      "type": "array",
+      "items": { "$ref": "definitions/given.json#/$defs/GivenBinding" }
+    },
+    "external_entities": {
+      "type": "array",
+      "items": { "$ref": "definitions/entities.json#/$defs/ExternalEntity" }
+    },
+    "value_types": {
+      "type": "array",
+      "items": { "$ref": "definitions/entities.json#/$defs/ValueType" }
+    },
+    "enumerations": {
+      "type": "array",
+      "items": { "$ref": "definitions/enumerations.json#/$defs/Enumeration" }
+    },
+    "entities": {
+      "type": "array",
+      "items": { "$ref": "definitions/entities.json#/$defs/Entity" }
+    },
+    "variants": {
+      "type": "array",
+      "items": { "$ref": "definitions/entities.json#/$defs/Variant" }
+    },
+    "config": {
+      "type": "array",
+      "items": { "$ref": "definitions/config.json#/$defs/ConfigParam" }
+    },
+    "defaults": {
+      "type": "array",
+      "items": { "$ref": "definitions/defaults.json#/$defs/Default" }
+    },
+    "rules": {
+      "type": "array",
+      "items": { "$ref": "definitions/rules.json#/$defs/Rule" }
+    },
+    "actors": {
+      "type": "array",
+      "items": { "$ref": "definitions/actors.json#/$defs/Actor" }
+    },
+    "surfaces": {
+      "type": "array",
+      "items": { "$ref": "definitions/surfaces.json#/$defs/Surface" }
+    },
+    "deferred": {
+      "type": "array",
+      "items": { "$ref": "definitions/deferred.json#/$defs/Deferred" }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": { "$ref": "definitions/open-questions.json#/$defs/OpenQuestion" }
+    }
+  },
+  "required": ["version", "file"],
+  "additionalProperties": false
+}

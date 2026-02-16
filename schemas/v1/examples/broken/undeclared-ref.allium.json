@@ -1,0 +1,47 @@
+{
+  "version": "1",
+  "file": "undeclared-ref.allium",
+  "metadata": {
+    "scope": "broken-example",
+    "description": "Triggers RULE-01: entity_ref references an entity not declared anywhere"
+  },
+  "entities": [
+    {
+      "name": "Order",
+      "fields": [
+        {
+          "name": "total",
+          "type": { "kind": "primitive", "value": "Integer" }
+        },
+        {
+          "name": "customer",
+          "type": { "kind": "entity_ref", "entity": "Customer" }
+        }
+      ],
+      "relationships": [],
+      "projections": [],
+      "derived_values": []
+    }
+  ],
+  "rules": [
+    {
+      "name": "PlaceOrder",
+      "trigger": {
+        "kind": "external_stimulus",
+        "name": "PlaceOrder",
+        "parameters": [
+          { "name": "order" }
+        ]
+      },
+      "ensures": [
+        {
+          "kind": "entity_creation",
+          "entity": "Order",
+          "fields": {
+            "total": { "kind": "literal", "type": "integer", "value": 0 }
+          }
+        }
+      ]
+    }
+  ]
+}

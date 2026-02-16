@@ -1,0 +1,393 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Allium Expression Definitions",
+  "$defs": {
+    "Expression": {
+      "type": "object",
+      "required": [
+        "kind"
+      ],
+      "oneOf": [
+        {
+          "$ref": "#/$defs/FieldAccess"
+        },
+        {
+          "$ref": "#/$defs/Literal"
+        },
+        {
+          "$ref": "#/$defs/Comparison"
+        },
+        {
+          "$ref": "#/$defs/Arithmetic"
+        },
+        {
+          "$ref": "#/$defs/BooleanLogic"
+        },
+        {
+          "$ref": "#/$defs/FunctionCall"
+        },
+        {
+          "$ref": "#/$defs/CollectionOp"
+        },
+        {
+          "$ref": "#/$defs/Exists"
+        },
+        {
+          "$ref": "#/$defs/Not"
+        },
+        {
+          "$ref": "#/$defs/NullCoalesce"
+        },
+        {
+          "$ref": "#/$defs/SetLiteral"
+        },
+        {
+          "$ref": "#/$defs/Membership"
+        },
+        {
+          "$ref": "#/$defs/JoinLookup"
+        },
+        {
+          "$ref": "#/$defs/Lambda"
+        }
+      ]
+    },
+    "FieldAccess": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "field_access"
+        },
+        "object": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Expression"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "field": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "object",
+        "field"
+      ],
+      "additionalProperties": false
+    },
+    "Literal": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "literal"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "string",
+            "integer",
+            "decimal",
+            "boolean",
+            "null",
+            "duration",
+            "enum_value",
+            "timestamp"
+          ]
+        },
+        "value": {}
+      },
+      "required": [
+        "kind",
+        "type",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "Comparison": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "comparison"
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "=",
+            "!=",
+            "<",
+            "<=",
+            ">",
+            ">="
+          ]
+        },
+        "left": {
+          "$ref": "#/$defs/Expression"
+        },
+        "right": {
+          "$ref": "#/$defs/Expression"
+        }
+      },
+      "required": [
+        "kind",
+        "operator",
+        "left",
+        "right"
+      ],
+      "additionalProperties": false
+    },
+    "Arithmetic": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "arithmetic"
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "+",
+            "-",
+            "*",
+            "/"
+          ]
+        },
+        "left": {
+          "$ref": "#/$defs/Expression"
+        },
+        "right": {
+          "$ref": "#/$defs/Expression"
+        }
+      },
+      "required": [
+        "kind",
+        "operator",
+        "left",
+        "right"
+      ],
+      "additionalProperties": false
+    },
+    "BooleanLogic": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "boolean_logic"
+        },
+        "operator": {
+          "type": "string",
+          "enum": [
+            "and",
+            "or"
+          ]
+        },
+        "left": {
+          "$ref": "#/$defs/Expression"
+        },
+        "right": {
+          "$ref": "#/$defs/Expression"
+        }
+      },
+      "required": [
+        "kind",
+        "operator",
+        "left",
+        "right"
+      ],
+      "additionalProperties": false
+    },
+    "FunctionCall": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "function_call"
+        },
+        "name": {
+          "type": "string"
+        },
+        "arguments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Expression"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "arguments"
+      ],
+      "additionalProperties": false
+    },
+    "CollectionOp": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "collection_op"
+        },
+        "operation": {
+          "type": "string",
+          "enum": [
+            "count",
+            "any",
+            "all",
+            "first",
+            "last",
+            "where"
+          ]
+        },
+        "collection": {
+          "$ref": "#/$defs/Expression"
+        },
+        "lambda": {
+          "$ref": "#/$defs/Lambda"
+        },
+        "condition": {
+          "$ref": "#/$defs/Expression"
+        }
+      },
+      "required": [
+        "kind",
+        "operation",
+        "collection"
+      ],
+      "additionalProperties": false
+    },
+    "Exists": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "exists"
+        },
+        "target": {
+          "$ref": "#/$defs/Expression"
+        }
+      },
+      "required": [
+        "kind",
+        "target"
+      ],
+      "additionalProperties": false
+    },
+    "Not": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "not"
+        },
+        "operand": {
+          "$ref": "#/$defs/Expression"
+        }
+      },
+      "required": [
+        "kind",
+        "operand"
+      ],
+      "additionalProperties": false
+    },
+    "NullCoalesce": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "null_coalesce"
+        },
+        "left": {
+          "$ref": "#/$defs/Expression"
+        },
+        "right": {
+          "$ref": "#/$defs/Expression"
+        }
+      },
+      "required": [
+        "kind",
+        "left",
+        "right"
+      ],
+      "additionalProperties": false
+    },
+    "SetLiteral": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "set_literal"
+        },
+        "elements": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Expression"
+          }
+        }
+      },
+      "required": [
+        "kind",
+        "elements"
+      ],
+      "additionalProperties": false
+    },
+    "Membership": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "membership"
+        },
+        "element": {
+          "$ref": "#/$defs/Expression"
+        },
+        "collection": {
+          "$ref": "#/$defs/Expression"
+        }
+      },
+      "required": [
+        "kind",
+        "element",
+        "collection"
+      ],
+      "additionalProperties": false
+    },
+    "JoinLookup": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "join_lookup"
+        },
+        "entity": {
+          "$ref": "common.json#/$defs/PascalCaseName"
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Expression"
+          },
+          "minProperties": 1
+        }
+      },
+      "required": [
+        "kind",
+        "entity",
+        "fields"
+      ],
+      "additionalProperties": false
+    },
+    "Lambda": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "const": "lambda"
+        },
+        "parameter": {
+          "$ref": "common.json#/$defs/identifier"
+        },
+        "body": {
+          "$ref": "#/$defs/Expression"
+        }
+      },
+      "required": [
+        "kind",
+        "parameter",
+        "body"
+      ],
+      "additionalProperties": false
+    }
+  }
+}
